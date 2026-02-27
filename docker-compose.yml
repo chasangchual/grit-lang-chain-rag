@@ -45,8 +45,24 @@ services:
       - neo4j_data:/data
       - neo4j_logs:/logs
 
+  redis:
+    image: redis:7-alpine
+    container_name: grit-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   minio_data:
   neo4j_data:
   neo4j_logs:
+  redis_data:
