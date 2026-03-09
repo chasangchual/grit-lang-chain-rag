@@ -27,6 +27,28 @@ In this version, **`celery-worker` and `celery-flower` are removed** because Air
 softwareupdate --install-rosetta
 ```
 
+### Install PostgreSQL client
+
+If you only need to connect to remote databases and do not want to run a local PostgreSQL server, you should install libpq. 
+
+**Update Homebrew:**
+Ensure your package definitions are up to date by running:
+```bash
+brew update
+```
+**Install libpq:**
+This package contains the PostgreSQL client tools without the full server.
+```bash
+brew install libpq
+```
+**Link the binaries:**
+libpq is "keg-only," meaning it is not automatically added to your system path. You must force-link it or add it to your shell configuration to use psql.
+```bash
+brew link --force libpq
+```
+Note: If linking fails, you may need to add the path to your .zshrc or .bash_profile as instructed in the Homebrew "Caveats" output. 
+
+
 ---
 
 ## 2. Files
