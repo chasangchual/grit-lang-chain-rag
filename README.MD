@@ -1,148 +1,302 @@
-# Grit Local Infrastructure (Docker Compose)
+# Grit Local Infrastructure (Data Pipeline Stack)
 
-This repository contains a `docker-compose.yml` that provisions a
-complete local infrastructure stack for development and testing.
+This repository provisions a local infrastructure stack for development and testing.
 
 It includes:
+- **PostgreSQL 16 + pgvector** (application database, vector search, and Airflow metadata)
+- **Apache Airflow 2.8.1** using **LocalExecutor**
+- **Airflow init service** to bootstrap the metadata DB and create an admin user
+- **MinIO** (S3-compatible object storage)
+- **Neo4j 5** (graph database)
+- **Redis 7** (kept for another local project; Airflow does **not** require it in this setup)
+- **Alpine SFTP** (source data simulation)
+- **Docker Mailserver** (email testing)
 
--   PostgreSQL 16 (Relational Database)
--   MinIO (S3-compatible Object Storage)
--   Neo4j 5 (Graph Database)
--   Redis 7 (In-memory Cache / KV Store)
+In this version, **`celery-worker` and `celery-flower` are removed** because Airflow is configured with `LocalExecutor`.
 
-All services run locally using Docker and persist data via named
-volumes.
+---
 
-------------------------------------------------------------------------
+## 1. Prerequisites
 
-# Architecture Overview
+- **Docker Engine / Docker Desktop**
+- **Docker Compose v2**
+- **System Memory:** minimum 4 GB, 8 GB+ recommended
+- **Mac users (Apple Silicon):** install **Rosetta 2** if needed because the SFTP service uses `linux/amd64`
 
-  Service    Container Name   Ports                   Purpose
-  ---------- ---------------- ----------------------- ------------------
-  Postgres   grit-postgres    5432                    Relational DB
-  MinIO      grit-minio       9000 (API), 9001 (UI)   Object storage
-  Neo4j      grit-neo4j       7474 (UI), 7687         Graph DB
-  Redis      grit-redis       6379                    Cache / KV store
+```bash
+softwareupdate --install-rosetta
+```
 
-Persistent Volumes: - postgres_data - minio_data - neo4j_data -
-neo4j_logs - redis_data
+---
 
-------------------------------------------------------------------------
+## 2. Files
 
-# Prerequisites
+Place these files in your project root:
+- `docker-compose.yml`
+- `init-db.sh`
+- `.env` (copy from `.env.example`)
+- `.env.example`
 
--   Docker Engine / Docker Desktop
--   Docker Compose v2
+### docker-compose.yml
+This compose file starts:
+- `postgres`
+- `minio`
+- `neo4j`
+- `redis`
+- `airflow-init`
+- `airflow-webserver`
+- `airflow-scheduler`
+- `sftp`
+- `mailserver`
 
-Verify:
+Airflow uses:
+- `AIRFLOW__CORE__EXECUTOR=LocalExecutor`
+- PostgreSQL for metadata
+- no Celery worker
+- `airflow-init` to run `airflow db migrate` and create an admin user before the webserver and scheduler start
 
-    docker --version
-    docker compose version
+### init-db.sh
+This script:
+- creates the `airflow` database
+- enables `vector` in `${POSTGRES_DB}`
+- enables `vector` in `airflow`
 
-------------------------------------------------------------------------
+### .env
+Create `.env` by copying `.env.example` and replacing sample values.
 
-# Environment Variables (.env Required)
+To generate `AIRFLOW_FERNET_KEY`:
 
-This project requires a `.env` file before starting the stack.
+```bash
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
 
-## Step 1: Copy template
+---
 
-    cp .env.example .env
+## 3. Example .env
 
-## Step 2: Update values
+```dotenv
+# Postgres
+POSTGRES_DB=grit
+POSTGRES_USER=grit-admin
+POSTGRES_PASSWORD=password123
 
-Edit `.env` and replace all `CHANGE_ME_*` values with secure
-credentials.
+# MinIO
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
 
-### Postgres
+# Neo4j
+NEO4J_DATABASE=neo4j
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=password123
 
--   POSTGRES_DB
--   POSTGRES_USER
--   POSTGRES_PASSWORD
+# Redis
+REDIS_PORT=6379
 
-Used during container initialization and healthcheck.
+# SFTP
+SFTP_USER=grituser
+SFTP_PASS=gritpass
 
-### Neo4j
+# Email
+MAIL_DOMAIN=example.com
 
--   NEO4J_DATABASE
--   NEO4J_USER
--   NEO4J_PASSWORD
+# Airflow
+AIRFLOW_FERNET_KEY=YOUR_GENERATED_KEY_HERE
+AIRFLOW_UID=50000
+AIRFLOW_ADMIN_USERNAME=admin
+AIRFLOW_ADMIN_PASSWORD=admin
+AIRFLOW_ADMIN_FIRSTNAME=Admin
+AIRFLOW_ADMIN_LASTNAME=User
+AIRFLOW_ADMIN_EMAIL=admin@example.com
+```
 
-Docker Compose combines these as:
+---
 
-    NEO4J_AUTH=${NEO4J_USER}/${NEO4J_PASSWORD}
+## 4. Initialization
 
-### MinIO
+Create local directories and make the database init script executable:
 
--   MINIO_ROOT_USER
--   MINIO_ROOT_PASSWORD
+```bash
+mkdir -p ./airflow/dags ./airflow/logs ./airflow/plugins ./sftp_upload
+chmod -R 777 ./airflow
+chmod +x init-db.sh
+```
 
-Used for MinIO Console login (http://localhost:9001) and S3 API
-(http://localhost:9000).
+> Note: PostgreSQL init scripts in `/docker-entrypoint-initdb.d` run only when the database directory is empty. If `postgres_data` already exists, `init-db.sh` will not run again automatically.
 
-### Redis
+If this is a fresh start and you want a clean bootstrap:
 
--   REDIS_PORT
--   REDIS_PASSWORD
+```bash
+docker compose down -v
+docker compose up -d
+```
 
-Note: Current docker-compose does NOT enforce Redis AUTH by default.
+On startup, `airflow-init` will:
+- wait for Postgres to be healthy
+- run `airflow db migrate`
+- create the Airflow admin user
+- allow the webserver and scheduler to start afterward
 
-------------------------------------------------------------------------
+---
 
-# How to Run
+## 5. How to run
 
-Start services:
+Start all services:
 
-    docker compose up -d
+```bash
+docker compose up -d
+```
 
 Check status:
 
-    docker compose ps
+```bash
+docker compose ps
+```
 
-View logs:
+Check Airflow init logs:
 
-    docker compose logs -f
+```bash
+docker compose logs airflow-init
+```
 
 Stop services:
 
-    docker compose down
+```bash
+docker compose down
+```
 
-Remove volumes (delete data):
+Stop services and remove volumes:
 
-    docker compose down -v
+```bash
+docker compose down -v
+```
 
-------------------------------------------------------------------------
+---
 
-# Verification
+## 6. What you get
 
-Check containers:
+After startup, these endpoints are available:
 
-    docker ps
+- **Postgres:** `localhost:5432`
+- **MinIO API:** `http://localhost:9000`
+- **MinIO Console:** `http://localhost:9001`
+- **Neo4j Browser:** `http://localhost:7474`
+- **Neo4j Bolt:** `localhost:7687`
+- **Redis:** `localhost:6379`
+- **Airflow UI:** `http://localhost:8080`
+- **SFTP:** `localhost:2222`
+- **SMTP:** `localhost:25`
+- **Mail submission:** `localhost:587`
 
-Postgres test:
+Default Airflow admin credentials come from `.env`:
+- username: `${AIRFLOW_ADMIN_USERNAME}`
+- password: `${AIRFLOW_ADMIN_PASSWORD}`
 
-    docker exec -it grit-postgres psql -U grit-admin -d grit -c "SELECT 1;"
+---
 
-Redis test:
+## 7. How to verify
 
-    docker exec -it grit-redis redis-cli ping
+### Verify containers
 
-Expected:
+```bash
+docker compose ps
+```
 
-    PONG
+### Verify Postgres databases
 
-MinIO health:
+```bash
+docker compose exec postgres psql -U "$POSTGRES_USER" -d postgres -c "\l"
+```
 
-    curl http://localhost:9000/minio/health/live
+You should see both your main database (for example `grit`) and `airflow`.
 
-Neo4j UI:
+### Verify pgvector
 
-    http://localhost:7474
+```bash
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT extname FROM pg_extension WHERE extname='vector';"
+docker compose exec postgres psql -U "$POSTGRES_USER" -d airflow -c "SELECT extname FROM pg_extension WHERE extname='vector';"
+```
 
-------------------------------------------------------------------------
+### Verify Airflow init
 
-# Security Notes
+```bash
+docker compose logs airflow-init
+```
 
--   `.env` contains secrets --- do NOT commit it.
--   `.env.example` is safe to commit.
--   Restart containers after updating credentials.
+You should see successful output from `airflow db migrate`.
+
+### Verify Airflow web UI
+Open `http://localhost:8080`
+
+### Verify Redis
+
+```bash
+docker compose exec redis redis-cli ping
+```
+
+Expected result:
+
+```text
+PONG
+```
+
+### Verify MinIO
+Open `http://localhost:9001` and sign in with values from `.env`.
+
+### Verify Neo4j
+Open `http://localhost:7474` and sign in with values from `.env`.
+
+---
+
+## 8. Troubleshooting
+
+### Problem: `airflow` database does not exist
+
+This usually means `postgres_data` already existed, so `init-db.sh` did not run again.
+
+#### Manual recovery steps (without deleting volumes)
+
+Run the following commands:
+
+```bash
+docker compose exec postgres psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE airflow;"
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+docker compose exec postgres psql -U "$POSTGRES_USER" -d airflow -c "CREATE EXTENSION IF NOT EXISTS vector;"
+docker compose run --rm airflow-init
+```
+
+That will:
+- create the `airflow` database
+- enable `vector` in both databases
+- rerun Airflow metadata initialization and admin-user creation
+
+#### Clean reset option
+
+```bash
+docker compose down -v
+docker compose up -d
+```
+
+Use this when you are fine removing existing local Postgres data.
+
+### Problem: Airflow UI is up but login fails
+
+Check the value of these variables in `.env`:
+
+```dotenv
+AIRFLOW_ADMIN_USERNAME=admin
+AIRFLOW_ADMIN_PASSWORD=admin
+```
+
+If needed, recreate the user:
+
+```bash
+docker compose run --rm airflow-init
+```
+
+### Problem: `airflow-init` finished before you checked it
+
+This is normal. It is a one-time bootstrap container. View its logs with:
+
+```bash
+docker compose logs airflow-init
+```

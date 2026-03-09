@@ -1,6 +1,25 @@
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.8.1
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@grit-postgres:5432/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__SMTP__SMTP_HOST: grit-mailserver
+    AIRFLOW__SMTP__SMTP_PORT: 25
+    AIRFLOW__SMTP__SMTP_USER: admin@${MAIL_DOMAIN}
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./airflow/plugins:/opt/airflow/plugins
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16-trixie
     container_name: grit-postgres
     restart: unless-stopped
     environment:
@@ -11,6 +30,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -59,6 +79,74 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: grit-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate && \
+        airflow users create \
+          --username "${AIRFLOW_ADMIN_USERNAME}" \
+          --firstname "${AIRFLOW_ADMIN_FIRSTNAME}" \
+          --lastname "${AIRFLOW_ADMIN_LASTNAME}" \
+          --role Admin \
+          --email "${AIRFLOW_ADMIN_EMAIL}" \
+          --password "${AIRFLOW_ADMIN_PASSWORD}" || true
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: grit-airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: grit-airflow-scheduler
+    command: scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  sftp:
+    image: atmoz/sftp
+    container_name: grit-sftp
+    platform: linux/amd64 # Forces emulation via Rosetta 2 on Mac
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    volumes:
+      - ./sftp_upload:/home/${SFTP_USER}/upload
+    command: ${SFTP_USER}:${SFTP_PASS}:1001
+
+  mailserver:
+    image: mailserver/docker-mailserver
+    container_name: grit-mailserver
+    hostname: mail
+    domainname: ${MAIL_DOMAIN}
+    environment:
+      ENABLE_SPAMASSASSIN: 0
+      ENABLE_CLAMAV: 0
+      ENABLE_FAIL2BAN: 0
+    ports:
+      - "25:25"
+      - "587:587"
 
 volumes:
   postgres_data:
