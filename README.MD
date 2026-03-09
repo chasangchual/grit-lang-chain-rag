@@ -322,3 +322,33 @@ This is normal. It is a one-time bootstrap container. View its logs with:
 ```bash
 docker compose logs airflow-init
 ```
+
+# Getting Started
+
+Follow the steps below to initialize the project and install dependencies using `uv`.
+
+## 1. Initialize the Project
+
+Initialize the project environment. This will create the necessary project configuration and environment files if they do not already exist.
+
+**Description**
+* Sets up the project structure for uv
+* Creates or validates the pyproject.toml
+* Prepares the environment for dependency management
+
+
+```bash
+uv init
+```
+
+## 2. Install and Sync Dependencies
+Install all dependencies defined in pyproject.toml and synchronize the environment.
+
+```bash
+uv sync
+```
+
+**Description**
+* Creates the virtual environment (if not already created)
+* Installs dependencies listed in pyproject.toml
+* Ensures the environment matches the lock file (uv.lock) if present
