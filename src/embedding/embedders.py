@@ -5,7 +5,6 @@ import hashlib
 
 from langchain_ollama import OllamaEmbeddings
 
-
 class EmbeddingProvider(ABC):
     @abstractmethod
     def embed_texts(self, texts: list[str]) -> list[list[float]]:

@@ -1,5 +1,5 @@
 from .base import DocumentLoader, LoaderDependencyError, LoaderRegistry
-from .file_loaders import ExcelLoader, PdfLoader, PowerPointLoader, TextFileLoader, WordLoader
+from .file_loaders import ExcelLoader, FileSystemLoader, PdfLoader, PowerPointLoader, TextFileLoader, WordLoader
 from .url_loader import WebUrlLoader
 
 
@@ -18,6 +18,7 @@ __all__ = [
     "DocumentLoader",
     "LoaderDependencyError",
     "LoaderRegistry",
+    "FileSystemLoader",
     "TextFileLoader",
     "PdfLoader",
     "WordLoader",

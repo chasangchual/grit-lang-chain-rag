@@ -4,7 +4,7 @@ from pathlib import Path
 
 from langchain_community.document_loaders import PyPDFLoader
 
-from .base import DocumentLoader, LoaderDependencyError, build_document
+from .base import DocumentLoader, LoaderDependencyError, LoaderRegistry, build_document
 from ..models import Document
 
 
@@ -92,6 +92,38 @@ class ExcelLoader(_ExtensionBasedLoader):
 
         text = "\n\n".join(chunks)
         return [build_document(path, "excel", text, {"extension": path.suffix.lower()})]
+
+
+class FileSystemLoader:
+    """Loads documents from a file or directory, dispatching by file extension."""
+
+    def __init__(self, path: str | Path, recursive: bool = False, registry: LoaderRegistry | None = None) -> None:
+        self._path = Path(path)
+        self._recursive = recursive
+        self._registry = registry
+
+    def load(self) -> list[Document]:
+        if self._path.is_file():
+            return self._load_file(self._path)
+        if self._path.is_dir():
+            return self._load_directory(self._path)
+        raise ValueError(f"Path does not exist or is not a file/directory: {self._path}")
+
+    def _load_file(self, path: Path) -> list[Document]:
+        from . import build_default_registry
+        registry = self._registry or build_default_registry()
+        try:
+            return registry.load(path)
+        except ValueError:
+            return []
+
+    def _load_directory(self, directory: Path) -> list[Document]:
+        pattern = "**/*" if self._recursive else "*"
+        documents: list[Document] = []
+        for entry in sorted(directory.glob(pattern)):
+            if entry.is_file():
+                documents.extend(self._load_file(entry))
+        return documents
 
 
 class PowerPointLoader(_ExtensionBasedLoader):

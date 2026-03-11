@@ -1,6 +1,10 @@
+from embedding import Document
+from embedding.loaders.file_loaders import TextFileLoader
+
 def main():
-    print("Hello from grit-lang-chain-rag!")
-
-
+    textFileLoader = TextFileLoader()
+    documents: list[Document] = textFileLoader.load('/Users/sangcha/workspace/grit/grit-lang-chain-rag/README.MD')
+    for document in documents:
+        print(document)
 if __name__ == "__main__":
     main()
