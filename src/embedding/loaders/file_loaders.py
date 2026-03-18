@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from langchain_community.document_loaders import PyPDFLoader
 
 from .base import DocumentLoader, LoaderDependencyError, LoaderRegistry, build_document
 from ..models import Document
-
 
 class _ExtensionBasedLoader(DocumentLoader):
     extensions: set[str] = set()
@@ -33,7 +33,12 @@ class PdfLoader(_ExtensionBasedLoader):
 
     def load(self, source: str | Path) -> list[Document]:
         path = Path(source)
-        docs = PyPDFLoader(str(path)).load()
+        try:
+            docs = PyPDFLoader(str(path)).load()
+        except Exception as exc:
+            logging.warning(f"Failed to load PDF document {path}: {exc}")
+            return []
+
         return [
             build_document(
                 path,
@@ -62,9 +67,12 @@ class WordLoader(_ExtensionBasedLoader):
             ) from exc
 
         path = Path(source)
-        text = docx2txt.process(str(path))
-        return [build_document(path, "word", text, {"extension": ".docx"})]
-
+        try:
+            text = docx2txt.process(str(path))
+            return [build_document(path, "word", text, {"extension": ".docx"})]
+        except Exception as exc:
+            logging.warning(f"Failed to load Word document {path}: {exc}")
+            return []
 
 class ExcelLoader(_ExtensionBasedLoader):
     extensions = {".xlsx", ".xls"}
@@ -78,20 +86,24 @@ class ExcelLoader(_ExtensionBasedLoader):
             ) from exc
 
         path = Path(source)
-        wb = load_workbook(path, read_only=True, data_only=True)
+        try:
+            wb = load_workbook(path, read_only=True, data_only=True)
 
-        chunks: list[str] = []
-        for sheet in wb.worksheets:
-            rows: list[str] = []
-            for row in sheet.iter_rows(values_only=True):
-                line = "\t".join("" if cell is None else str(cell) for cell in row).strip()
-                if line:
-                    rows.append(line)
-            if rows:
-                chunks.append(f"# Sheet: {sheet.title}\n" + "\n".join(rows))
+            chunks: list[str] = []
+            for sheet in wb.worksheets:
+                rows: list[str] = []
+                for row in sheet.iter_rows(values_only=True):
+                    line = "\t".join("" if cell is None else str(cell) for cell in row).strip()
+                    if line:
+                        rows.append(line)
+                if rows:
+                    chunks.append(f"# Sheet: {sheet.title}\n" + "\n".join(rows))
 
-        text = "\n\n".join(chunks)
-        return [build_document(path, "excel", text, {"extension": path.suffix.lower()})]
+            text = "\n\n".join(chunks)
+            return [build_document(path, "excel", text, {"extension": path.suffix.lower()})]
+        except Exception as exc:
+            logging.warning(f"Failed to load Excel document {path}: {exc}")
+            return []
 
 
 class FileSystemLoader:

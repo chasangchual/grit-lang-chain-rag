@@ -12,7 +12,8 @@ class EmbeddingProvider(ABC):
 
 
 class OllamaEmbeddingProvider(EmbeddingProvider):
-    def __init__(self, model: str = "nomic-embed-text", base_url: str | None = None) -> None:
+    # qwen3-embedding:8b
+    def __init__(self, model: str = "embeddinggemma:300m", base_url: str | None = None) -> None:
         kwargs = {"model": model}
         if base_url:
             kwargs["base_url"] = base_url
