@@ -25,7 +25,7 @@ class Embedding(Base):
     vector = Column(
         Vector(1536), nullable=False
     )  # 1536 dimensions for OpenAI embeddings
-    metadata = Column(JSON, nullable=True)
+    meta = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
