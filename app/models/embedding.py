@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from pgvector.sqlalchemy import Vector
@@ -7,6 +7,11 @@ from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import relationship
 
 from .base import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC datetime."""
+    return datetime.now(timezone.utc)
 
 
 class Embedding(Base):
@@ -26,10 +31,8 @@ class Embedding(Base):
         Vector(1536), nullable=False
     )  # 1536 dimensions for OpenAI embeddings
     meta = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
     document = relationship("Document", back_populates="embeddings")

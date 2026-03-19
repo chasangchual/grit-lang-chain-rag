@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import Column, DateTime, Integer, String, Text
@@ -6,6 +6,11 @@ from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import relationship
 
 from .base import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC datetime."""
+    return datetime.now(timezone.utc)
 
 
 class Document(Base):
@@ -18,10 +23,8 @@ class Document(Base):
     text = Column(Text, nullable=True)
     source = Column(String(500), nullable=True)
     meta = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
     embeddings = relationship(
