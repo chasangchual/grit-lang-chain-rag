@@ -4,13 +4,9 @@ This repository provisions a local infrastructure stack for development and test
 
 It includes:
 - **PostgreSQL 16 + pgvector** (application database, vector search, and Airflow metadata)
-- **Apache Airflow 2.8.1** using **LocalExecutor**
-- **Airflow init service** to bootstrap the metadata DB and create an admin user
 - **MinIO** (S3-compatible object storage)
 - **Neo4j 5** (graph database)
 - **Redis 7** (kept for another local project; Airflow does **not** require it in this setup)
-- **Alpine SFTP** (source data simulation)
-- **Docker Mailserver** (email testing)
 
 In this version, **`celery-worker` and `celery-flower` are removed** because Airflow is configured with `LocalExecutor`.
 
@@ -65,42 +61,27 @@ This compose file starts:
 - `minio`
 - `neo4j`
 - `redis`
-- `airflow-init`
-- `airflow-webserver`
-- `airflow-scheduler`
-- `sftp`
-- `mailserver`
 
-Airflow uses:
-- `AIRFLOW__CORE__EXECUTOR=LocalExecutor`
-- PostgreSQL for metadata
-- no Celery worker
-- `airflow-init` to run `airflow db migrate` and create an admin user before the webserver and scheduler start
 
 ### init-db.sh
 This script:
 - creates the `airflow` database
 - enables `vector` in `${POSTGRES_DB}`
-- enables `vector` in `airflow`
 
 ### .env
 Create `.env` by copying `.env.example` and replacing sample values.
-
-To generate `AIRFLOW_FERNET_KEY`:
-
-```bash
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
 
 ---
 
 ## 3. Example .env
 
 ```dotenv
-# Postgres
-POSTGRES_DB=grit
-POSTGRES_USER=grit-admin
-POSTGRES_PASSWORD=password123
+# Database Connection (for application)
+DB_USER=grit-admin
+DB_PASSWORD=password123
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=grit
 
 # MinIO
 MINIO_ROOT_USER=minioadmin
@@ -114,49 +95,12 @@ NEO4J_PASSWORD=password123
 # Redis
 REDIS_PORT=6379
 
-# SFTP
-SFTP_USER=grituser
-SFTP_PASS=gritpass
-
-# Email
-MAIL_DOMAIN=example.com
-
-# Airflow
-AIRFLOW_FERNET_KEY=YOUR_GENERATED_KEY_HERE
-AIRFLOW_UID=50000
-AIRFLOW_ADMIN_USERNAME=admin
-AIRFLOW_ADMIN_PASSWORD=admin
-AIRFLOW_ADMIN_FIRSTNAME=Admin
-AIRFLOW_ADMIN_LASTNAME=User
-AIRFLOW_ADMIN_EMAIL=admin@example.com
 ```
 
 ---
 
 ## 4. Initialization
 
-Create local directories and make the database init script executable:
-
-```bash
-mkdir -p ./airflow/dags ./airflow/logs ./airflow/plugins ./sftp_upload
-chmod -R 777 ./airflow
-chmod +x init-db.sh
-```
-
-> Note: PostgreSQL init scripts in `/docker-entrypoint-initdb.d` run only when the database directory is empty. If `postgres_data` already exists, `init-db.sh` will not run again automatically.
-
-If this is a fresh start and you want a clean bootstrap:
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-On startup, `airflow-init` will:
-- wait for Postgres to be healthy
-- run `airflow db migrate`
-- create the Airflow admin user
-- allow the webserver and scheduler to start afterward
 
 ---
 
@@ -172,12 +116,6 @@ Check status:
 
 ```bash
 docker compose ps
-```
-
-Check Airflow init logs:
-
-```bash
-docker compose logs airflow-init
 ```
 
 Stop services:
@@ -204,20 +142,18 @@ After startup, these endpoints are available:
 - **Neo4j Browser:** `http://localhost:7474`
 - **Neo4j Bolt:** `localhost:7687`
 - **Redis:** `localhost:6379`
-- **Airflow UI:** `http://localhost:8080`
-- **SFTP:** `localhost:2222`
-- **SMTP:** `localhost:25`
-- **Mail submission:** `localhost:587`
 
-Default Airflow admin credentials come from `.env`:
-- username: `${AIRFLOW_ADMIN_USERNAME}`
-- password: `${AIRFLOW_ADMIN_PASSWORD}`
 
 ---
 
 ## 7. How to verify
 
 ### Verify containers
+
+- install PostgreSQL client
+```bash
+brew install libpq
+```
 
 ```bash
 docker compose ps
