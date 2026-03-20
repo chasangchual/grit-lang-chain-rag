@@ -8,6 +8,7 @@ from .embedders import EmbeddingProvider
 from .loaders.base import LoaderRegistry
 from .models import Chunk, Document, EmbeddedChunk
 from .splitters import DocumentSplitter
+from app.api.deps import DbSession, DocumentServiceDep, EmbeddingServiceDep
 
 
 class EmbeddingPipeline:
