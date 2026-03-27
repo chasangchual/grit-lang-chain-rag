@@ -9,6 +9,8 @@ from embedding.pipeline import EmbeddingPipeline, EmbeddedChunk, EmbeddingProvid
 from embedding.embedders import OllamaEmbeddingProvider
 from embedding.loaders import build_default_registry
 
+from fastapi import FastAPI
+
 def main():
     # loader: FileSystemLoader = FileSystemLoader(path="/Users/sangcha/Documents/Shakudo/ICI", recursive=False)
     # docSpliter: DocumentSplitter = RecursiveTextSplitter()

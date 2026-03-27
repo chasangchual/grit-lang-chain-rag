@@ -16,7 +16,7 @@ REDIS_RESULT_INSTANCE = os.getenv("REDIS_INSTANCE", "1")
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 
 class Configurations(BaseSettings):
-    app_name: str = "LangChain RAG"
+    app_name: str = "grit-rag"
     app_version: str = "0.1.0"
     app_env: str = "local"
     

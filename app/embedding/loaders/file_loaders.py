@@ -79,31 +79,63 @@ class ExcelLoader(_ExtensionBasedLoader):
 
     def load(self, source: str | Path) -> list[Document]:
         try:
-            from openpyxl import load_workbook
+            import pandas as pd
         except ImportError as exc:
             raise LoaderDependencyError(
-                "Excel support requires `openpyxl`. Install it with: uv add openpyxl"
+                "Excel support requires `pandas`. Install it with: uv add pandas"
             ) from exc
 
         path = Path(source)
-        try:
-            wb = load_workbook(path, read_only=True, data_only=True)
+        engine = self._engine_for_suffix(path.suffix.lower())
+        if engine == "xlrd":
+            try:
+                import xlrd  # noqa: F401
+            except ImportError as exc:
+                raise LoaderDependencyError(
+                    "Legacy .xls support requires `xlrd`. Install it with: uv add xlrd"
+                ) from exc
 
+        try:
             chunks: list[str] = []
-            for sheet in wb.worksheets:
+            workbook = pd.read_excel(
+                path,
+                sheet_name=None,
+                header=None,
+                engine=engine,
+                dtype=object,
+            )
+
+            for sheet_name, frame in workbook.items():
                 rows: list[str] = []
-                for row in sheet.iter_rows(values_only=True):
-                    line = "\t".join("" if cell is None else str(cell) for cell in row).strip()
+                for row in frame.itertuples(index=False, name=None):
+                    line = "\t".join(self._stringify_cell(cell) for cell in row).strip()
                     if line:
                         rows.append(line)
                 if rows:
-                    chunks.append(f"# Sheet: {sheet.title}\n" + "\n".join(rows))
+                    chunks.append(f"# Sheet: {sheet_name}\n" + "\n".join(rows))
 
             text = "\n\n".join(chunks)
             return [build_document(path, "excel", text, {"extension": path.suffix.lower()})]
         except Exception as exc:
             logging.warning(f"Failed to load Excel document {path}: {exc}")
             return []
+
+    @staticmethod
+    def _engine_for_suffix(suffix: str) -> str:
+        if suffix == ".xls":
+            return "xlrd"
+        return "openpyxl"
+
+    @staticmethod
+    def _stringify_cell(value: object) -> str:
+        try:
+            import pandas as pd
+        except ImportError:
+            return "" if value is None else str(value)
+
+        if value is None or pd.isna(value):
+            return ""
+        return str(value)
 
 
 class FileSystemLoader:

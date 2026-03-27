@@ -1,15 +1,17 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes import documents_router, embeddings_router
-
+from app.api.routes.app import app_router
+from app.config.config import Configurations, get_config
 
 def create_app() -> FastAPI:
+    config: Configurations = get_config()  # Load configuration at startup
+    
     """Create and configure the FastAPI application."""
     app = FastAPI(
-        title="Document RAG API",
+        title=config.app_name,
         description="API for managing documents and embeddings for RAG applications",
-        version="1.0.0",
+        version=config.app_version,
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
@@ -27,8 +29,7 @@ def create_app() -> FastAPI:
         )
 
     # Include routers with API prefix
-    app.include_router(documents_router, prefix="/api/v1")
-    app.include_router(embeddings_router, prefix="/api/v1")
+    app.include_router(app_router, prefix="/api/v1")
 
     # Health check endpoint
     @app.get("/health", tags=["health"])
@@ -40,4 +41,4 @@ def create_app() -> FastAPI:
 
 
 # Create the app instance
-app = create_app()
+api_service = create_app()

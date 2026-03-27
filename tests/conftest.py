@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.app import create_app
+from app.api.main import create_app
 from app.api.deps import get_db
 from app.models.base import Base
 from app.models.document import Document
