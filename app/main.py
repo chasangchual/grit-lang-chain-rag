@@ -1,32 +1,61 @@
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, HTMLResponse
+from app.api.routes.app import app_router
+from app.config.config import Configurations, get_config
+from fastapi.templating import Jinja2Templates
 from pathlib import Path
-from typing import List
+from fastapi.staticfiles import StaticFiles
 
-from embedding import Document
-from embedding.loaders.file_loaders import LoaderRegistry
-import pprint as pp
-from embedding.splitters import DocumentSplitter,RecursiveTextSplitter
-from embedding.pipeline import EmbeddingPipeline, EmbeddedChunk, EmbeddingProvider
-from embedding.embedders import OllamaEmbeddingProvider
-from embedding.loaders import build_default_registry
+def create_app() -> FastAPI:
+    config: Configurations = get_config()  # Load configuration at startup
+    templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
-from fastapi import FastAPI
+    """Create and configure the FastAPI application."""
+    app = FastAPI(
+        title=config.app_name,
+        description="API for managing documents and embeddings for RAG applications",
+        version=config.app_version,
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        openapi_url="/api/openapi.json",
+    )
 
-def main():
-    # loader: FileSystemLoader = FileSystemLoader(path="/Users/sangcha/Documents/Shakudo/ICI", recursive=False)
-    # docSpliter: DocumentSplitter = RecursiveTextSplitter()
-    # documents: list[Document] = loader.load()
-    # for doc in documents:
-    #     chunks: List[str] = docSpliter.split(doc)
-    #     for chunk in chunks:
-    #         pp.pprint(chunk)
-    splitter: DocumentSplitter = RecursiveTextSplitter() 
-    embedder: EmbeddingProvider = OllamaEmbeddingProvider() 
-        
-    pipeline = EmbeddingPipeline(registry=build_default_registry(), splitter=splitter, embedder=embedder)
+    # Register exception handlers
+    @app.exception_handler(Exception)
+    async def generic_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
+        """Handle unexpected exceptions."""
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
+
+    # Include routers with API prefix
+    app.include_router(app_router, prefix="/api/v1")
+
+    # Health check endpoint
+    @app.get("/health", tags=["health"])
+    def health_check() -> dict:
+        """Health check endpoint."""
+        return {"status": "healthy"}
+
+    @app.get("/ping", status_code=200, response_class=HTMLResponse)
+    async def ping(request: Request):
+        return 'pong'
+
+    @app.get("/home", status_code=200, response_class=HTMLResponse)
+    async def home(request: Request):
+        return templates.TemplateResponse("home.html", {"request": request})
+
+    static_path = Path(__file__).parent / "static" 
     
-    embendings : List[EmbeddedChunk] = pipeline.process_directory(Path("/Users/sangcha/Documents/Shakudo/ICI"));
-    for embending in embendings:
-        pp.pprint(embending)
-                
-if __name__ == "__main__":
-    main()
+    # 3. Mount the static files directory
+    # 'directory' is the physical folder on your disk
+    # 'name' must match the string used in url_for('static', ...)
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
+    
+    return app
+
+# Create the app instance
+api_service = create_app()
