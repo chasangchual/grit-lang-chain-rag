@@ -6,7 +6,6 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.config import db
-
 from app.models.base import Base
 from app.models.document import Document
 from app.models.embedding import Embedding

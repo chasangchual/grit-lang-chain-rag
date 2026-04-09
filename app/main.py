@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from app.api.routes.app import app_router
-from app.config.config import Configurations, get_config
+from app.config.app_config import AppConfig, get_config
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
 def create_app() -> FastAPI:
-    config: Configurations = get_config()  # Load configuration at startup
+    config: AppConfig = get_config()  # Load configuration at startup
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
     """Create and configure the FastAPI application."""

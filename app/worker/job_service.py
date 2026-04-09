@@ -6,7 +6,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.config.config import get_config
+from app.config.app_config import get_config
 from app.models.job import FileResult, Job, JobLog, JobStatus
 
 logger = logging.getLogger("job_runner.jobs")

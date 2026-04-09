@@ -104,6 +104,43 @@ REDIS_PORT=6379
 
 ---
 
+### Database schema migration
+
+Run the `alembic init migration` command in the project root whree pyproject.toml exists 
+refer, https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
+
+```
+$> alembic init migration 
+
+  Creating directory <project root>/migrations ...  done
+  Creating directory <project root>/migrations/versions ...  done
+  Generating <project root>/migrations/script.py.mako ...  done
+  Generating <project root>/migrations/env.py ...  done
+  Generating <project root>/migrations/README ...  done
+  Generating <project root>/alembic.ini ...  done
+  ```
+
+### Core Migration Commands
+- **Apply all migrations**: Update your database to the most recent version.
+```bash
+alembic upgrade head
+```
+> Note: head refers to the latest revision in your Alembic versions directory.
+
+- **Revert the last migration**: Roll back the database schema by exactly one version.
+```bash
+alembic downgrade -1
+```
+*Alternatively*, you can downgrade to a specific version by using its unique Revision ID.
+
+- **Check current status**: View which migration version is currently applied to your database.
+```bash
+alembic current
+```
+> This command queries the `alembic_version` table in your database to find the active Revision ID. 
+
+
+
 ## 5. How to run
 
 Start all services:
