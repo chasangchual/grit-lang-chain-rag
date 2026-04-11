@@ -107,7 +107,7 @@ REDIS_PORT=6379
 ### Database schema migration
 
 Run the `alembic init migration` command in the project root whree pyproject.toml exists 
-refer, https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
+refer, https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration and https://alembic.sqlalchemy.org/en/latest/tutorial.html
 
 ```
 $> alembic init migration 
@@ -140,6 +140,11 @@ alembic current
 > This command queries the `alembic_version` table in your database to find the active Revision ID. 
 
 
+### Create a Migration Script 
+With the environment in place we can create a new revision, using alembic revision:
+```
+alembic revision -m "create account table"
+```
 
 ## 5. How to run
 
