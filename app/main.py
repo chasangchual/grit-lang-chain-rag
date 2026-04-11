@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
+
 def create_app() -> FastAPI:
     config: AppConfig = get_config()  # Load configuration at startup
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -16,9 +17,19 @@ def create_app() -> FastAPI:
         description="API for managing documents and embeddings for RAG applications",
         version=config.app_version,
         docs_url="/api/docs",
-        redoc_url="/api/redoc",
+        redoc_url="/api/redoc",  # Redocly API documentation
         openapi_url="/api/openapi.json",
     )
+
+    # Include routers with API prefix
+    app.include_router(app_router, prefix="/api/v1")
+
+    static_path = Path(__file__).parent / "static"
+
+    # 3. Mount the static files directory
+    # 'directory' is the physical folder on your disk
+    # 'name' must match the string used in url_for('static', ...)
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
 
     # Register exception handlers
     @app.exception_handler(Exception)
@@ -31,9 +42,6 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error"},
         )
 
-    # Include routers with API prefix
-    app.include_router(app_router, prefix="/api/v1")
-
     # Health check endpoint
     @app.get("/health", tags=["health"])
     def health_check() -> dict:
@@ -42,20 +50,14 @@ def create_app() -> FastAPI:
 
     @app.get("/ping", status_code=200, response_class=HTMLResponse)
     async def ping(request: Request):
-        return 'pong'
+        return "pong"
 
     @app.get("/home", status_code=200, response_class=HTMLResponse)
     async def home(request: Request):
         return templates.TemplateResponse("home.html", {"request": request})
 
-    static_path = Path(__file__).parent / "static" 
-    
-    # 3. Mount the static files directory
-    # 'directory' is the physical folder on your disk
-    # 'name' must match the string used in url_for('static', ...)
-    app.mount("/static", StaticFiles(directory=static_path), name="static")
-    
     return app
+
 
 # Create the app instance
 api_service = create_app()
