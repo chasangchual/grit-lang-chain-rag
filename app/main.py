@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from app.api.routes.app import app_router
+from app.api.routes.documents import router as documents_router
+from app.api.routes.jobs import router as jobs_router
+from app.api.routes.chat import router as chat_router
 from app.config.app_config import AppConfig, get_config
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -23,12 +26,11 @@ def create_app() -> FastAPI:
 
     # Include routers with API prefix
     app.include_router(app_router, prefix="/api/v1")
+    app.include_router(documents_router, prefix="/api/v1")
+    app.include_router(jobs_router, prefix="/api/v1")
+    app.include_router(chat_router, prefix="/api/v1")
 
     static_path = Path(__file__).parent / "static"
-
-    # 3. Mount the static files directory
-    # 'directory' is the physical folder on your disk
-    # 'name' must match the string used in url_for('static', ...)
     app.mount("/static", StaticFiles(directory=static_path), name="static")
 
     # Register exception handlers
@@ -41,6 +43,10 @@ def create_app() -> FastAPI:
             status_code=500,
             content={"detail": "Internal server error"},
         )
+
+    @app.get("/", response_class=HTMLResponse)
+    async def root(request: Request):
+        return templates.TemplateResponse("home.html", {"request": request})
 
     # Health check endpoint
     @app.get("/health", tags=["health"])

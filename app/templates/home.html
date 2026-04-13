@@ -1,11 +1,732 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='/todo/css/bootstrap.css')}}">
     <meta charset="UTF-8">
-    <title>FastAPI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a1a;
+            --bg-sidebar: #0f0f24;
+            --bg-card: rgba(255,255,255,0.04);
+            --bg-card-hover: rgba(255,255,255,0.07);
+            --bg-input: rgba(255,255,255,0.06);
+            --border-subtle: rgba(255,255,255,0.08);
+            --border-active: rgba(139,92,246,0.4);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888a4;
+            --text-muted: #55556a;
+            --accent: #8b5cf6;
+            --accent-light: #a78bfa;
+            --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 50%, #3b82f6 100%);
+            --accent-glow: 0 0 20px rgba(139,92,246,0.3);
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --info: #60a5fa;
+            --sidebar-width: 260px;
+            --radius: 14px;
+            --radius-sm: 10px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-subtle);
+            display: flex; flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar-brand {
+            padding: 28px 24px 24px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .sidebar-brand h1 {
+            font-size: 20px; font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .sidebar-brand p {
+            font-size: 12px; color: var(--text-muted); margin-top: 4px;
+            letter-spacing: 0.5px; text-transform: uppercase;
+        }
+        .sidebar-nav { padding: 16px 12px; flex: 1; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; border-radius: var(--radius-sm);
+            cursor: pointer; transition: all 0.2s;
+            font-size: 14px; font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }
+        .nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+        .nav-item.active {
+            background: rgba(139,92,246,0.12);
+            color: var(--accent-light);
+            border-color: var(--border-active);
+        }
+        .nav-icon { width: 20px; height: 20px; opacity: 0.7; }
+        .nav-item.active .nav-icon { opacity: 1; }
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 12px; color: var(--text-muted);
+        }
+
+        /* ── Main ── */
+        .main {
+            margin-left: var(--sidebar-width);
+            height: 100vh; overflow-y: auto;
+            padding: 32px 40px;
+        }
+        .main::-webkit-scrollbar { width: 6px; }
+        .main::-webkit-scrollbar-track { background: transparent; }
+        .main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        .page-header { margin-bottom: 32px; }
+        .page-header h2 { font-size: 26px; font-weight: 700; }
+        .page-header p { font-size: 14px; color: var(--text-secondary); margin-top: 6px; }
+
+        /* ── Cards ── */
+        .stat-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 16px; margin-bottom: 28px;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 22px;
+            transition: all 0.25s;
+        }
+        .stat-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-active);
+        }
+        .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 32px; font-weight: 700; margin-top: 8px; }
+        .stat-value.accent { color: var(--accent-light); }
+        .stat-value.success { color: var(--success); }
+        .stat-value.warning { color: var(--warning); }
+        .stat-value.danger { color: var(--danger); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 28px;
+        }
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .card-title { font-size: 16px; font-weight: 600; }
+
+        /* ── Tab Pages ── */
+        .tab-page { display: none; }
+        .tab-page.active { display: block; }
+
+        /* ── Form ── */
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block; font-size: 13px; font-weight: 500;
+            color: var(--text-secondary); margin-bottom: 8px;
+        }
+        .form-input, .form-textarea {
+            width: 100%; padding: 12px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 14px; font-family: inherit;
+            transition: all 0.2s;
+        }
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--accent-glow);
+        }
+        .form-textarea { resize: vertical; min-height: 100px; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 11px 24px; border-radius: var(--radius-sm);
+            font-size: 14px; font-weight: 600; font-family: inherit;
+            cursor: pointer; border: none; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--accent-gradient); color: white;
+            box-shadow: 0 4px 14px rgba(139,92,246,0.35);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(139,92,246,0.45); }
+        .btn-ghost {
+            background: var(--bg-input); color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+        }
+        .btn-ghost:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+        .source-options {
+            display: flex; gap: 10px; margin-bottom: 16px;
+        }
+        .source-option {
+            padding: 10px 18px; border-radius: var(--radius-sm);
+            background: var(--bg-input); border: 1px solid var(--border-subtle);
+            color: var(--text-secondary); cursor: pointer;
+            font-size: 13px; font-weight: 500; transition: all 0.2s;
+        }
+        .source-option.active {
+            border-color: var(--accent); color: var(--accent-light);
+            background: rgba(139,92,246,0.1);
+        }
+        .source-option.disabled {
+            opacity: 0.35; cursor: not-allowed;
+        }
+
+        /* ── Table ── */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            text-align: left; padding: 12px 16px;
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .data-table td {
+            padding: 14px 16px; font-size: 13px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+        .data-table tr:hover td { background: var(--bg-card); color: var(--text-primary); }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 12px; font-weight: 600;
+        }
+        .badge::before {
+            content: ''; width: 7px; height: 7px; border-radius: 50%;
+        }
+        .badge-queued { background: rgba(96,165,250,0.12); color: var(--info); }
+        .badge-queued::before { background: var(--info); }
+        .badge-running { background: rgba(251,191,36,0.12); color: var(--warning); }
+        .badge-running::before { background: var(--warning); }
+        .badge-completed { background: rgba(52,211,153,0.12); color: var(--success); }
+        .badge-completed::before { background: var(--success); }
+        .badge-failed { background: rgba(248,113,113,0.12); color: var(--danger); }
+        .badge-failed::before { background: var(--danger); }
+        .badge-retrying { background: rgba(192,132,252,0.12); color: var(--accent-light); }
+        .badge-retrying::before { background: var(--accent-light); }
+
+        .progress-bar {
+            height: 6px; background: var(--bg-input);
+            border-radius: 3px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; border-radius: 3px;
+            background: var(--accent-gradient);
+            transition: width 0.4s ease;
+        }
+        .progress-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--text-muted);
+        }
+        .empty-state p { margin-top: 10px; font-size: 14px; }
+
+        /* ── Chat ── */
+        .chat-wrapper { display: flex; flex-direction: column; height: calc(100vh - 180px); }
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 20px 0;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .chat-bubble {
+            max-width: 75%; padding: 14px 18px;
+            border-radius: 16px; font-size: 14px; line-height: 1.6;
+        }
+        .chat-bubble.user {
+            align-self: flex-end;
+            background: var(--accent-gradient); color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-bubble.assistant {
+            align-self: flex-start;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            border-bottom-left-radius: 4px;
+        }
+        .chat-sources {
+            margin-top: 8px; font-size: 12px; color: var(--text-muted);
+            border-top: 1px solid var(--border-subtle); padding-top: 8px;
+        }
+        .chat-input-row {
+            display: flex; gap: 12px; padding-top: 16px;
+            border-top: 1px solid var(--border-subtle);
+        }
+        .chat-input {
+            flex: 1; padding: 14px 18px;
+            background: var(--bg-input); border: 1px solid var(--border-subtle);
+            border-radius: 24px; color: var(--text-primary);
+            font-size: 14px; font-family: inherit;
+            transition: all 0.2s;
+        }
+        .chat-input:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: var(--accent-glow);
+        }
+        .chat-send {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: var(--accent-gradient); border: none;
+            color: white; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .chat-send:hover { transform: scale(1.05); box-shadow: var(--accent-glow); }
+
+        /* ── Alerts ── */
+        .alert {
+            padding: 14px 18px; border-radius: var(--radius-sm);
+            font-size: 13px; margin-bottom: 16px;
+        }
+        .alert-success { background: rgba(52,211,153,0.1); color: var(--success); border: 1px solid rgba(52,211,153,0.2); }
+        .alert-error { background: rgba(248,113,113,0.1); color: var(--danger); border: 1px solid rgba(248,113,113,0.2); }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            z-index: 200; align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-sidebar); border: 1px solid var(--border-subtle);
+            border-radius: var(--radius); padding: 28px;
+            width: 560px; max-height: 80vh; overflow-y: auto;
+        }
+        .modal h3 { font-size: 18px; margin-bottom: 20px; }
+        .modal-close {
+            float: right; background: none; border: none;
+            color: var(--text-muted); cursor: pointer; font-size: 20px;
+        }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+        .detail-label { font-size: 13px; color: var(--text-muted); }
+        .detail-value { font-size: 13px; font-weight: 500; }
+    </style>
 </head>
 <body>
-<h1> Welcome To FastAPI Service!</h1>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <h1>GRIT RAG</h1>
+        <p>Admin Dashboard</p>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-item active" data-tab="embed" onclick="switchTab('embed', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            Embed Documents
+        </div>
+        <div class="nav-item" data-tab="jobs" onclick="switchTab('jobs', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Job Status
+        </div>
+        <div class="nav-item" data-tab="documents" onclick="switchTab('documents', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/></svg>
+            Documents
+        </div>
+        <div class="nav-item" data-tab="chat" onclick="switchTab('chat', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Chat
+        </div>
+    </nav>
+    <div class="sidebar-footer">
+        v0.1.0
+    </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main">
+
+    <!-- ═══ EMBED TAB ═══ -->
+    <div class="tab-page active" id="page-embed">
+        <div class="page-header">
+            <h2>Embed Documents</h2>
+            <p>Submit files and directories for vector embedding</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">New Embedding Job</span>
+            </div>
+
+            <div class="form-group">
+                <label>Data Source</label>
+                <div class="source-options">
+                    <div class="source-option active" onclick="selectSource(this, 'local')">📁 Local Path</div>
+                    <div class="source-option disabled" title="Coming soon">☁️ Google Drive</div>
+                    <div class="source-option disabled" title="Coming soon">🗄️ S3 Bucket</div>
+                </div>
+            </div>
+
+            <div id="embed-alert"></div>
+
+            <form id="embed-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Job Name</label>
+                        <input type="text" id="job-name" class="form-input" placeholder="e.g. Q4 Reports Embedding" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Input Path</label>
+                        <input type="text" id="input-dir" class="form-input" placeholder="/data/documents" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Submit Job
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══ JOBS TAB ═══ -->
+    <div class="tab-page" id="page-jobs">
+        <div class="page-header">
+            <h2>Job Status</h2>
+            <p>Monitor Celery worker progress and results</p>
+        </div>
+
+        <div class="stat-grid" id="jobs-stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Jobs</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Running</div>
+                <div class="stat-value warning" id="stat-running">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Completed</div>
+                <div class="stat-value success" id="stat-completed">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value danger" id="stat-failed">0</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Job Queue</span>
+                <button class="btn btn-ghost" onclick="loadJobs()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    Refresh
+                </button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-tbody">
+                    <tr><td colspan="6"><div class="empty-state">Loading jobs...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ DOCUMENTS TAB ═══ -->
+    <div class="tab-page" id="page-documents">
+        <div class="page-header">
+            <h2>Documents & Embeddings</h2>
+            <p>Browse indexed documents and their embedding chunks</p>
+        </div>
+
+        <div class="stat-grid" id="docs-stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Documents</div>
+                <div class="stat-value accent" id="stat-docs">0</div>
+            </div>
+            <div class="stat-card" style="grid-column: span 3;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Documents</span>
+                <button class="btn btn-ghost" onclick="loadDocuments()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    Refresh
+                </button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Source</th>
+                        <th>Type</th>
+                        <th>Hash</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="docs-tbody">
+                    <tr><td colspan="6"><div class="empty-state">Loading documents...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ CHAT TAB ═══ -->
+    <div class="tab-page" id="page-chat">
+        <div class="page-header">
+            <h2>RAG Chat</h2>
+            <p>Ask questions about your embedded documents</p>
+        </div>
+
+        <div class="card chat-wrapper">
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-bubble assistant">
+                    Hello! I'm your RAG assistant. Ask me questions about your embedded documents and I'll retrieve the most relevant information.
+                </div>
+            </div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Ask a question about your documents..." onkeydown="if(event.key==='Enter')sendChat()">
+                <button class="chat-send" onclick="sendChat()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Job Detail Modal -->
+<div class="modal-overlay" id="job-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h3>Job Details</h3>
+        <div id="job-detail-content"></div>
+    </div>
+</div>
+
+<!-- Document Detail Modal -->
+<div class="modal-overlay" id="doc-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeDocModal()">&times;</button>
+        <h3>Document Details</h3>
+        <div id="doc-detail-content"></div>
+    </div>
+</div>
+
+<script>
+const API = '/api/v1';
+
+function switchTab(tab, el) {
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + tab).classList.add('active');
+    el.classList.add('active');
+    if (tab === 'jobs') loadJobs();
+    if (tab === 'documents') loadDocuments();
+}
+
+function selectSource(el) {
+    document.querySelectorAll('.source-option').forEach(o => o.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function formatDt(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
+}
+
+// ── EMBED ──
+document.getElementById('embed-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('job-name').value;
+    const inputDir = document.getElementById('input-dir').value;
+    const alertDiv = document.getElementById('embed-alert');
+    try {
+        const res = await fetch(`${API}/jobs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, input_dir: inputDir })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const job = await res.json();
+        alertDiv.innerHTML = `<div class="alert alert-success">Job #${job.id} created — status: ${job.status}</div>`;
+        document.getElementById('embed-form').reset();
+    } catch (err) {
+        alertDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+});
+
+// ── JOBS ──
+async function loadJobs() {
+    try {
+        const res = await fetch(`${API}/jobs`);
+        const data = await res.json();
+        const counts = { running: 0, completed: 0, failed: 0, queued: 0, retrying: 0 };
+        data.items.forEach(j => { if (counts[j.status] !== undefined) counts[j.status]++; });
+        document.getElementById('stat-total').textContent = data.total;
+        document.getElementById('stat-running').textContent = counts.running + counts.retrying;
+        document.getElementById('stat-completed').textContent = counts.completed;
+        document.getElementById('stat-failed').textContent = counts.failed;
+        const tbody = document.getElementById('jobs-tbody');
+        if (!data.items.length) {
+            tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No jobs yet</p></div></td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.items.map(j => {
+            const pct = j.total_files ? Math.round(j.processed_files / j.total_files * 100) : 0;
+            return `<tr>
+                <td>#${j.id}</td>
+                <td>${j.name}</td>
+                <td><span class="badge badge-${j.status}">${j.status}</span></td>
+                <td style="min-width:140px">
+                    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+                    <div class="progress-text">${j.processed_files}/${j.total_files}</div>
+                </td>
+                <td>${formatDt(j.created_at)}</td>
+                <td><button class="btn btn-ghost" onclick="viewJob(${j.id})">Details</button></td>
+            </tr>`;
+        }).join('');
+    } catch (err) {
+        document.getElementById('jobs-tbody').innerHTML = `<tr><td colspan="6"><div class="alert alert-error">${err.message}</div></td></tr>`;
+    }
+}
+
+async function viewJob(id) {
+    try {
+        const res = await fetch(`${API}/jobs/${id}`);
+        const j = await res.json();
+        const logs = j.logs.map(l => `<div style="margin:4px 0"><span style="color:${l.level==='ERROR'?'var(--danger)':'var(--text-muted)'}">[${l.level}]</span> ${l.message}</div>`).join('');
+        document.getElementById('job-detail-content').innerHTML = `
+            <div class="detail-row"><span class="detail-label">ID</span><span class="detail-value">#${j.id}</span></div>
+            <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${j.name}</span></div>
+            <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value"><span class="badge badge-${j.status}">${j.status}</span></span></div>
+            <div class="detail-row"><span class="detail-label">Input</span><span class="detail-value">${j.input_dir}</span></div>
+            <div class="detail-row"><span class="detail-label">Progress</span><span class="detail-value">${j.processed_files}/${j.total_files}</span></div>
+            <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${formatDt(j.created_at)}</span></div>
+            <div class="detail-row"><span class="detail-label">Started</span><span class="detail-value">${formatDt(j.started_at)}</span></div>
+            <div class="detail-row"><span class="detail-label">Finished</span><span class="detail-value">${formatDt(j.finished_at)}</span></div>
+            ${j.error_message ? `<div class="detail-row"><span class="detail-label">Error</span><span class="detail-value" style="color:var(--danger)">${j.error_message}</span></div>` : ''}
+            ${logs ? `<div style="margin-top:16px"><div class="detail-label" style="margin-bottom:8px">Logs</div><div style="background:var(--bg-input);padding:12px;border-radius:8px;font-size:12px;font-family:monospace">${logs}</div></div>` : ''}
+        `;
+        document.getElementById('job-modal').classList.add('active');
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+function closeModal() { document.getElementById('job-modal').classList.remove('active'); }
+
+// ── DOCUMENTS ──
+async function loadDocuments() {
+    try {
+        const res = await fetch(`${API}/documents`);
+        const data = await res.json();
+        document.getElementById('stat-docs').textContent = data.total;
+        const tbody = document.getElementById('docs-tbody');
+        if (!data.items.length) {
+            tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No documents yet</p></div></td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.items.map(d => `<tr>
+            <td style="font-family:monospace;font-size:12px">${d.public_id.substring(0,8)}…</td>
+            <td>${d.source || '—'}</td>
+            <td>.${d.extension}</td>
+            <td style="font-family:monospace;font-size:12px">${d.hash.substring(0,12)}…</td>
+            <td>${formatDt(d.created_at)}</td>
+            <td><button class="btn btn-ghost" onclick="viewDoc('${d.public_id}')">View</button></td>
+        </tr>`).join('');
+    } catch (err) {
+        document.getElementById('docs-tbody').innerHTML = `<tr><td colspan="6"><div class="alert alert-error">${err.message}</div></td></tr>`;
+    }
+}
+
+async function viewDoc(id) {
+    try {
+        const res = await fetch(`${API}/documents/${id}`);
+        const d = await res.json();
+        let embHtml = '';
+        try {
+            const embRes = await fetch(`${API}/documents/${id}/embeddings`);
+            const embeddings = await embRes.json();
+            embHtml = embeddings.length
+                ? `<div style="margin-top:12px"><div class="detail-label" style="margin-bottom:8px">${embeddings.length} Embeddings</div>
+                   <div style="background:var(--bg-input);padding:12px;border-radius:8px;font-size:12px">${embeddings.map(e => `<div style="padding:4px 0;border-bottom:1px solid var(--border-subtle)">Chunk #${e.index}: <span style="color:var(--text-muted)">${e.text.substring(0,80)}…</span></div>`).join('')}</div></div>`
+                : '<div style="margin-top:12px;color:var(--text-muted)">No embeddings</div>';
+        } catch {}
+        document.getElementById('doc-detail-content').innerHTML = `
+            <div class="detail-row"><span class="detail-label">ID</span><span class="detail-value" style="font-family:monospace">${d.public_id}</span></div>
+            <div class="detail-row"><span class="detail-label">Source</span><span class="detail-value">${d.source || '—'}</span></div>
+            <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">.${d.extension}</span></div>
+            <div class="detail-row"><span class="detail-label">Hash</span><span class="detail-value" style="font-family:monospace">${d.hash}</span></div>
+            <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${formatDt(d.created_at)}</span></div>
+            ${d.text ? `<div style="margin-top:16px"><div class="detail-label" style="margin-bottom:8px">Content Preview</div><div style="background:var(--bg-input);padding:12px;border-radius:8px;font-size:13px;max-height:200px;overflow-y:auto">${d.text.substring(0, 500)}${d.text.length > 500 ? '…' : ''}</div></div>` : ''}
+            ${embHtml}
+        `;
+        document.getElementById('doc-modal').classList.add('active');
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+function closeDocModal() { document.getElementById('doc-modal').classList.remove('active'); }
+
+// ── CHAT ──
+async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    const messages = document.getElementById('chat-messages');
+    messages.innerHTML += `<div class="chat-bubble user">${msg}</div>`;
+    input.value = '';
+    messages.scrollTop = messages.scrollHeight;
+    try {
+        const res = await fetch(`${API}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: msg, top_k: 5 })
+        });
+        const data = await res.json();
+        let html = data.answer;
+        if (data.sources && data.sources.length) {
+            html += `<div class="chat-sources">Sources: ${data.sources.map(s => `Doc ${s.document_id.substring(0,8)}… (score: ${s.similarity.toFixed(3)})`).join(', ')}</div>`;
+        }
+        messages.innerHTML += `<div class="chat-bubble assistant">${html}</div>`;
+    } catch (err) {
+        messages.innerHTML += `<div class="chat-bubble assistant" style="color:var(--danger)">Error: ${err.message}</div>`;
+    }
+    messages.scrollTop = messages.scrollHeight;
+}
+
+// ── Close modals on overlay click ──
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('active'); });
+});
+</script>
 </body>
 </html>

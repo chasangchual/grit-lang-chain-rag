@@ -1,5 +1,5 @@
 from celery import Celery
-from app.config import get_config
+from app.config.app_config import get_config
 
 config = get_config()
 PROCESS_JOB_TASK_NAME = "app.worker.tasks.process_document"
@@ -8,7 +8,7 @@ celery_app = Celery(
     "rag_embedding_pipeline",
     broker=config.celery_broker_url,
     backend=config.celery_result_backend,
-) 
+)
 
 celery_app.conf.update(
     task_track_started=True,
