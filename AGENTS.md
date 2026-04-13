@@ -6,7 +6,7 @@ FastAPI application for RAG (Retrieval-Augmented Generation) using LangChain, Po
 
 ## Prerequisites
 
-- **Python**: 3.13 (see `.python-version`)
+- **Python**: 3.12+ (see `.python-version`)
 - **uv**: Python package manager (`brew install uv` or `pip install uv`)
 - **Docker**: For local infrastructure services
 
@@ -105,10 +105,12 @@ Tests requiring pgvector use the `@requires_pgvector` decorator (see `tests/conf
 app/
 ├── api/routes/      # FastAPI route handlers
 ├── config/          # App configuration + DB setup
+├── core/            # Logging and core utilities
 ├── embedding/       # Document loading, splitting, embedding pipeline
 ├── models/          # SQLAlchemy models (base.py for shared timestamp mixin)
 ├── repositories/    # Data access layer
 ├── schemas/         # Pydantic request/response schemas
 ├── services/        # Business logic layer
+├── templates/       # Jinja2 HTML templates
 └── worker/          # Celery tasks
 ```
