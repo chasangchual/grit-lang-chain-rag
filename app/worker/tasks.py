@@ -1,40 +1,56 @@
 from __future__ import annotations
-from pathlib import Path 
+
 from celery.exceptions import MaxRetriesExceededError
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
 
-from app.config.app_config import get_config
-from app.config.db import get_session
+from app.config.db import SessionLocal
 from app.worker.celery_app import celery_app
 
-@celery_app.task
+
+@celery_app.task(name="app.worker.tasks.add")
 def add(x, y):
     return x + y
 
-@celery_app.task
-def process_documents(job_id: int):
-    from app.worker.job_service import get_job, mark_job_running, mark_job_retrying
-    session = next(get_session())
-    job = get_job(session, job_id)
-    if not job:
-        raise ValueError(f"Job with id {job_id} not found")
-    
+
+@celery_app.task(
+    bind=True,
+    name="app.worker.tasks.process_documents",
+    autoretry_for=(OperationalError,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    max_retries=3,
+)
+def process_documents(self, job_id: int):
+    from app.worker.job_service import (
+        get_job,
+        mark_job_running,
+        mark_job_failed,
+        mark_job_completed,
+    )
+
+    session = SessionLocal()
+    job = None
     try:
-        # Simulate processing documents
-        total_files = 10  # This would be determined by counting files in the input directory
-        mark_job_running(session, job, total_files=total_files, celery_task_id=process_documents.request.id)
-        
-        for i in range(total_files):
-            # Simulate processing each file
-            pass
-        
-        # Mark job as completed (this would be done in the actual implementation)
-        # mark_job_completed(session, job)
-        
-    except OperationalError as e:
-        try:
-            mark_job_retrying(session, job, error_message=str(e))
-            raise retry(exc=e, countdown=60)  # Retry after 60 seconds
-        except MaxRetriesExceededError:
-            mark_job_retrying(session, job, error_message="Max retries exceeded")
+        job = get_job(session, job_id)
+        if not job:
+            raise ValueError(f"Job with id {job_id} not found")
+
+        mark_job_running(session, job, total_files=0, celery_task_id=self.request.id)
+
+        # TODO: actual document processing logic here
+        mark_job_completed(session, job)
+
+    except MaxRetriesExceededError:
+        if job:
+            mark_job_failed(session, job, error_message="Max retries exceeded")
+        raise
+    except Exception as e:
+        if job:
+            if not isinstance(e, OperationalError):
+                mark_job_failed(session, job, error_message=str(e))
+            else:
+                # OperationalError will be auto-retried by autoretry_for
+                mark_job_failed(session, job, error_message=f"Retrying: {e}")
+        raise
+    finally:
+        session.close()

@@ -14,7 +14,7 @@ from app.schemas.job import (
     JobResponse,
     FileResultResponse,
 )
-from app.worker.celery_app import celery_app
+from app.worker.celery_app import celery_app, PROCESS_JOB_TASK_NAME
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -46,10 +46,9 @@ def create_job(
     session: DbSession,
 ) -> JobResponse:
     from app.worker.job_service import create_job as create_job_record
-    from app.worker.tasks import process_documents
 
     job = create_job_record(session, name=schema.name, input_dir=schema.input_dir)
-    task = process_documents.delay(job.id)
+    task = celery_app.send_task(PROCESS_JOB_TASK_NAME, args=[job.id])
     job.celery_task_id = task.id
     session.commit()
     return job_to_response(job)
