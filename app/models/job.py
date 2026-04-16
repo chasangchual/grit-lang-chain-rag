@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base
+from app.models.base import Base, ExternalBase
 
 class JobStatus(str, Enum):
     queued = "queued"
@@ -25,10 +25,9 @@ class JobStatus(str, Enum):
     failed = "failed"
 
 
-class Job(Base):
+class Job(ExternalBase):
     __tablename__ = "jobs"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(200))
     input_dir: Mapped[str] = mapped_column(String(500))
     status: Mapped[JobStatus] = mapped_column(
@@ -63,16 +62,9 @@ class Job(Base):
 class JobLog(Base):
     __tablename__ = "job_logs"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
     level: Mapped[str] = mapped_column(String(32), default="INFO", nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
-
     job: Mapped[Job] = relationship(back_populates="logs")
 
 
@@ -80,7 +72,6 @@ class FileResult(Base):
     __tablename__ = "file_results"
     __table_args__ = (UniqueConstraint("job_id", "file_path", name="uq_file_results_job_id_file_path"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     file_type: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -89,10 +80,5 @@ class FileResult(Base):
     content_length: Mapped[int] = mapped_column(Integer, nullable=False)
     extracted_summary: Mapped[str] = mapped_column(Text, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
 
     job: Mapped[Job] = relationship(back_populates="results")

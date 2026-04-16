@@ -4,11 +4,13 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+from sympy import im
 
 from app.config import db
 from app.models.base import Base
 from app.models.document import Document
 from app.models.embedding import Embedding
+from app.models.job import Job, JobLog, FileResult
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

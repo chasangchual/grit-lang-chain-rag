@@ -33,7 +33,7 @@ class AppConfig(BaseSettings):
         ".txt",
         ".md",
         ".pdf",
-        ".doc",
+        ".doc", 
         ".docs",
         ".ppt",
         ".pptx",

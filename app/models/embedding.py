@@ -6,7 +6,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import relationship
 
-from .base import Base
+from .base import ExternalBase
 
 
 def utc_now() -> datetime:
@@ -14,11 +14,9 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class Embedding(Base):
+class Embedding(ExternalBase):
     __tablename__ = "embeddings"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    public_id = Column(UUID(as_uuid=True), default=uuid4, unique=True, nullable=False)
     doc_id = Column(
         Integer,
         ForeignKey("documents.id", ondelete="CASCADE"),
@@ -31,8 +29,6 @@ class Embedding(Base):
         Vector(1536), nullable=False
     )  # 1536 dimensions for OpenAI embeddings
     meta = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=utc_now, nullable=False)
-    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
     document = relationship("Document", back_populates="embeddings")
