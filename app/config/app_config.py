@@ -12,19 +12,24 @@ class AppConfig(BaseSettings):
     app_name: str = "grit-rag"
     app_version: str = "0.1.0"
     app_env: str = Field(default="local", validation_alias="APP_ENV")
-    
 
     db_host: str = Field(default="localhost", validation_alias="POSTGRES_HOST")
     db_port: str = Field(default="5432", validation_alias="POSTGRES_PORT")
     db_name: str = Field(default="rag", validation_alias="POSTGRES_DB")
     db_user: str = Field(default="postgres", validation_alias="POSTGRES_USER")
-    db_password: str = Field(default="yourpassword", validation_alias="POSTGRES_PASSWORD")
+    db_password: str = Field(
+        default="yourpassword", validation_alias="POSTGRES_PASSWORD"
+    )
 
     redis_host: str = Field(default="localhost", validation_alias="REDIS_HOST")
     redis_port: str = Field(default="6379", validation_alias="REDIS_PORT")
     redis_password: str = Field(default="", validation_alias="REDIS_PASSWORD")
-    redis_queue_instance: str = Field(default="0", validation_alias="REDIS_QUEUE_INSTANCE")
-    redis_result_instance: str = Field(default="1", validation_alias="REDIS_RESULT_INSTANCE")
+    redis_queue_instance: str = Field(
+        default="0", validation_alias="REDIS_QUEUE_INSTANCE"
+    )
+    redis_result_instance: str = Field(
+        default="1", validation_alias="REDIS_RESULT_INSTANCE"
+    )
 
     working_directory: Path = Path("/app/data")
 
@@ -33,7 +38,7 @@ class AppConfig(BaseSettings):
         ".txt",
         ".md",
         ".pdf",
-        ".doc", 
+        ".doc",
         ".docs",
         ".ppt",
         ".pptx",
@@ -49,7 +54,7 @@ class AppConfig(BaseSettings):
 
     @property
     def redis_url(self) -> str:
-        return f"redis://{self.redis_host}:{self.redis_port}"
+        return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}"
 
     @property
     def celery_broker_url(self) -> str:

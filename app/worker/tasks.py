@@ -4,8 +4,7 @@ from celery.exceptions import MaxRetriesExceededError
 from sqlalchemy.exc import OperationalError
 
 from app.config.db import SessionLocal
-from app.worker.celery_app import celery_app
-
+from app.worker.celery_app import celery_app, PROCESS_DOCS_TASK_NAME
 
 @celery_app.task(name="app.worker.tasks.add")
 def add(x, y):
@@ -14,13 +13,14 @@ def add(x, y):
 
 @celery_app.task(
     bind=True,
-    name="app.worker.tasks.process_documents",
+    name=PROCESS_DOCS_TASK_NAME,
     autoretry_for=(OperationalError,),
     retry_backoff=True,
     retry_backoff_max=600,
     max_retries=3,
 )
 def process_documents(self, job_id: int):
+    print(f'''Processing documents for job_id: {job_id}''')
     from app.worker.job_service import (
         get_job,
         mark_job_running,

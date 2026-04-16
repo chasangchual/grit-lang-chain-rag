@@ -2,7 +2,8 @@ from celery import Celery
 from app.config.app_config import get_config
 
 config = get_config()
-PROCESS_JOB_TASK_NAME = "app.worker.tasks.process_documents"
+
+PROCESS_DOCS_TASK_NAME = "app.worker.tasks.process_documents"
 
 celery_app = Celery(
     "rag_embedding_pipeline",
