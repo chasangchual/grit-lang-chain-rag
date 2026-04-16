@@ -148,11 +148,52 @@ alembic revision -m "create account table"
 
 ## 5. How to run
 
-Start all services:
+Start all infrastructure services:
 
 ```bash
 docker compose up -d
 ```
+
+Start the FastAPI application:
+
+```bash
+uvicorn app.main:api_service --reload
+```
+
+Start the Celery worker (in a **separate terminal**):
+
+```bash
+celery -A app.worker.celery_app:celery_app worker --loglevel=INFO
+```
+
+> The Celery worker must be running for background jobs (document processing) to execute. Without it, tasks are enqueued in Redis but never consumed.
+
+### Trigger a Celery task manually
+
+From the Celery CLI:
+
+```bash
+# Quick test with the built-in add task
+celery -A app.worker.celery_app:celery_app call app.worker.tasks.add --args='[1,2]'
+
+# Trigger document processing for a specific job ID
+celery -A app.worker.celery_app:celery_app call app.worker.tasks.process_documents --args='[1]'
+```
+
+From a Python shell:
+
+```python
+from app.worker.celery_app import celery_app
+
+# Using send_task (no task import needed)
+celery_app.send_task("app.worker.tasks.process_documents", args=[1])
+
+# Or import and call directly
+from app.worker.tasks import process_documents
+process_documents.delay(1)
+```
+
+> Ensure the Celery worker is running before triggering tasks, or they will remain queued in Redis unprocessed.
 
 Check status:
 
