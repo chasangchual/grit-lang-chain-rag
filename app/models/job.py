@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, ExternalBase
 
+
 class JobStatus(str, Enum):
     queued = "queued"
     retrying = "retrying"
@@ -24,19 +25,13 @@ class JobStatus(str, Enum):
     completed = "completed"
     failed = "failed"
 
-
-class Job(ExternalBase):
-    __tablename__ = "jobs"
-
+class ProcessJob(ExternalBase):
     name: Mapped[str] = mapped_column(String(200))
-    input_dir: Mapped[str] = mapped_column(String(500))
     status: Mapped[JobStatus] = mapped_column(
         SqlEnum(JobStatus),
         default=JobStatus.queued,
         nullable=False,
     )
-    total_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    processed_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     celery_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -44,8 +39,12 @@ class Job(ExternalBase):
         server_default=func.now(),
         nullable=False,
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     logs: Mapped[list["JobLog"]] = relationship(
         back_populates="job",
@@ -58,6 +57,15 @@ class Job(ExternalBase):
         order_by="FileResult.id",
     )
 
+class DocumentsProcessJob(ProcessJob):
+    total_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    processed_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class LocalDocumentsProcessJob(DocumentsProcessJob):
+    __tablename__ = "document_process_jobs"
+
+    input_dir: Mapped[str] = mapped_column(String(500))
 
 class JobLog(Base):
     __tablename__ = "job_logs"
@@ -65,20 +73,26 @@ class JobLog(Base):
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
     level: Mapped[str] = mapped_column(String(32), default="INFO", nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    job: Mapped[Job] = relationship(back_populates="logs")
+    job: Mapped[LocalDocumentsProcessJob] = relationship(back_populates="logs")
 
 
 class FileResult(Base):
     __tablename__ = "file_results"
-    __table_args__ = (UniqueConstraint("job_id", "file_path", name="uq_file_results_job_id_file_path"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "job_id", "file_path", name="uq_file_results_job_id_file_path"
+        ),
+    )
 
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     file_type: Mapped[str] = mapped_column(String(32), nullable=False)
     parser_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    processing_status: Mapped[str] = mapped_column(String(32), nullable=False, default="processed")
+    processing_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="processed"
+    )
     content_length: Mapped[int] = mapped_column(Integer, nullable=False)
     extracted_summary: Mapped[str] = mapped_column(Text, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    job: Mapped[Job] = relationship(back_populates="results")
+    job: Mapped[LocalDocumentsProcessJob] = relationship(back_populates="results")
