@@ -14,6 +14,7 @@ from app.schemas.job import (
     JobResponse,
     FileResultResponse,
 )
+from app.services.document_process_service import process_document_embedding
 from app.worker.celery_app import celery_app, PROCESS_DOCS_TASK_NAME
 from app.worker.tasks import handle_process_documents_job
 
@@ -48,13 +49,17 @@ def create_job(
     session: DbSession,
 ) -> JobResponse:
     from app.worker.job_service import create_job as create_job_record
+    from app.config.db import SessionLocal, get_session
 
     job = create_job_record(session, name=schema.name, input_dir=schema.input_dir)
+
     # task = celery_app.send_task(PROCESS_DOCS_TASK_NAME, args=[job.id])
     # job.celery_task_id = task.id
     # session.commit()
     # return job_to_response(job)
-    process_documents(jobid)
+
+    session = SessionLocal()
+    process_document_embedding(SessionLocal(), job.input_dir)
     return job_to_response(job)
 
 @router.get(

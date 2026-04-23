@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.config.db import SessionLocal
+from app.embedding.loaders.file_loaders import FileSystemLoader
+from app.models import document
 from app.models.job import LocalDocumentsProcessJob
 from celery.exceptions import MaxRetriesExceededError
 from sqlalchemy.exc import OperationalError
@@ -52,5 +54,10 @@ def process_document(session: Session, job: LocalDocumentsProcessJob, task_id: s
 
 
 def process_document_embedding(session: Session, input_dir: str | None):
-    
+    if input_dir:
+        fileSystemLoader: FileSystemLoader = FileSystemLoader(path=input_dir);
+        documents = fileSystemLoader.load()
+        for document in documents:
+            print(f"Document: {document.type}, Text: {document.text[:100]}...")
+        return len(documents)
     return 0
