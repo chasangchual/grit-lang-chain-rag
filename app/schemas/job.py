@@ -8,7 +8,7 @@ from app.models.job import JobStatus
 
 class JobCreate(BaseModel):
     name: str = Field(..., max_length=200, description="Job name")
-    input_dir: str = Field(..., max_length=500, description="Input directory path")
+    load_from: str = Field(..., max_length=500, description="Input directory path")
 
 
 class FileResultResponse(BaseModel):

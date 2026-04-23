@@ -51,7 +51,7 @@ def create_job(
     from app.worker.job_service import create_job as create_job_record
     from app.config.db import SessionLocal, get_session
 
-    job = create_job_record(session, name=schema.name, input_dir=schema.input_dir)
+    job = create_job_record(session, name=schema.name, load_from=schema.load_from)
 
     # task = celery_app.send_task(PROCESS_DOCS_TASK_NAME, args=[job.id])
     # job.celery_task_id = task.id
@@ -59,7 +59,7 @@ def create_job(
     # return job_to_response(job)
 
     session = SessionLocal()
-    process_document_embedding(SessionLocal(), job.input_dir)
+    process_document_embedding(SessionLocal(), job.load_from)
     return job_to_response(job)
 
 @router.get(
@@ -113,9 +113,9 @@ def get_job(
         )
 
     return JobDetailResponse(
-        id=job.id,
+        id=job.id.value,
         name=job.name,
-        input_dir=job.input_dir,
+        input_dir=job.load_from,
         status=job.status,
         total_files=job.total_files,
         processed_files=job.processed_files,
@@ -126,11 +126,11 @@ def get_job(
         finished_at=job.finished_at,
         logs=[
             JobLogResponse(
-                id=log.id,
+                id=log.id.value,
                 job_id=log.job_id,
                 level=log.level,
                 message=log.message,
-                created_at=log.created_at,
+                created_at=log.created_at.value,
             )
             for log in job.logs
         ],
