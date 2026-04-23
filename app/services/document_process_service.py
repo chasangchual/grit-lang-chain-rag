@@ -52,4 +52,5 @@ def process_document(session: Session, job: LocalDocumentsProcessJob, task_id: s
 
 
 def process_document_embedding(session: Session, input_dir: str | None):
+    
     return 0

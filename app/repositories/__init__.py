@@ -1,9 +1,9 @@
 from .base import BaseRepository
-from .document import DocumentRepository
-from .embedding import EmbeddingRepository
+from .document_repository import DocumentService
+from .embedding_repository import EmbeddingRepository
 
 __all__ = [
     "BaseRepository",
-    "DocumentRepository",
+    "DocumentService",
     "EmbeddingRepository",
 ]

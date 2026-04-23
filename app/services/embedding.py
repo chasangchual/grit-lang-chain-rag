@@ -3,8 +3,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.embedding import Embedding
-from app.repositories.document import DocumentRepository
-from app.repositories.embedding import EmbeddingRepository
+from app.repositories.document_repository import DocumentService
+from app.repositories.embedding_repository import EmbeddingRepository
 from app.schemas.embedding import (
     EmbeddingCreate,
     EmbeddingSearchResult,
@@ -18,7 +18,7 @@ class EmbeddingService:
     def __init__(self, session: Session):
         self.session = session
         self.repository = EmbeddingRepository(session)
-        self.document_repository = DocumentRepository(session)
+        self.document_repository = DocumentService(session)
 
     def create_embedding(self, schema: EmbeddingCreate) -> Embedding | None:
         """

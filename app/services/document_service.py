@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
-from app.repositories.document import DocumentRepository
+from app.repositories.document_repository import D
 from app.schemas.document import DocumentCreate, DocumentUpdate
 
 
@@ -12,7 +12,7 @@ class DocumentService:
 
     def __init__(self, session: Session):
         self.session = session
-        self.repository = DocumentRepository(session)
+        self.repository = DocumentService(session)
 
     def create_document(self, schema: DocumentCreate) -> Document:
         """Create a new document."""
