@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config.app_config import get_config
-from app.models.job import FileResult, LocalDocumentsProcessJob, JobLog, JobStatus
+from app.models.job import FileResult, LocalDocumentsProcessJob, DocumentsProcess, JobStatus
 
 logger = logging.getLogger("job_runner.jobs")
 
@@ -24,7 +24,7 @@ def create_job(session: Session, name: str, input_dir: str | None) -> LocalDocum
 
 
 def add_job_log(session: Session, job_id: int, message: str, level: str = "INFO") -> None:
-    session.add(JobLog(job_id=job_id, message=message, level=level))
+    session.add(DocumentsProcess(job_id=job_id, message=message, level=level))
     session.commit()
     getattr(logger, level.lower(), logger.info)("job_id=%s %s", job_id, message)
 

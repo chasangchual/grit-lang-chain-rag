@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 
 from app.schemas.embedding import EmbeddingCreate, EmbeddingUpdate
-from app.services.embedding import EmbeddingService
+from app.services.embedding_service import EmbeddingService
 
 
 class TestEmbeddingService:

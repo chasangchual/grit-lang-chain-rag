@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
-from app.repositories.document_repository import D
+from app.repositories.document_repository import DocumentRepository
 from app.schemas.document import DocumentCreate, DocumentUpdate
 
 

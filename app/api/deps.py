@@ -4,8 +4,8 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.config.db import SessionLocal
-from app.services.document import DocumentService
-from app.services.embedding import EmbeddingService
+from app.services.document_service import DocumentService
+from app.services.embedding_service import EmbeddingService
 
 
 def get_db() -> Generator[Session, None, None]:

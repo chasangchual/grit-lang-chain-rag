@@ -13,7 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from app.models.base import Base, ExternalBase
 
@@ -26,6 +26,8 @@ class JobStatus(str, Enum):
     failed = "failed"
 
 class ProcessJob(ExternalBase):
+    __abstract__ = True
+
     name: Mapped[str] = mapped_column(String(200))
     status: Mapped[JobStatus] = mapped_column(
         SqlEnum(JobStatus),
@@ -46,34 +48,37 @@ class ProcessJob(ExternalBase):
         DateTime(timezone=True), nullable=True
     )
 
-    logs: Mapped[list["JobLog"]] = relationship(
-        back_populates="job",
-        cascade="all, delete-orphan",
-        order_by="JobLog.created_at",
-    )
-    results: Mapped[list["FileResult"]] = relationship(
-        back_populates="job",
-        cascade="all, delete-orphan",
-        order_by="FileResult.id",
-    )
+    @declared_attr
+    def logs(cls) -> Mapped[list["DocumentsProcess"]]:
+        return relationship(
+            back_populates="job",
+            cascade="all, delete-orphan",
+            order_by="JobLog.created_at",
+        )
+
+    @declared_attr
+    def results(cls) -> Mapped[list["FileResult"]]:
+        return relationship(
+            back_populates="job",
+            cascade="all, delete-orphan",
+            order_by="FileResult.id",
+        )
 
 class DocumentsProcessJob(ProcessJob):
-    total_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    processed_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-
-
-class LocalDocumentsProcessJob(DocumentsProcessJob):
     __tablename__ = "document_process_jobs"
 
-    input_dir: Mapped[str] = mapped_column(String(500))
+    total_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    processed_files: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    
+    load_from: Mapped[str] = mapped_column(String(500))
 
-class JobLog(Base):
-    __tablename__ = "job_logs"
+class DocumentsProcess(Base):
+    __tablename__ = "document_process_job_logs"
 
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
+    job_id: Mapped[int] = mapped_column(ForeignKey("document_process_jobs.id", ondelete="CASCADE"))
     level: Mapped[str] = mapped_column(String(32), default="INFO", nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    job: Mapped[LocalDocumentsProcessJob] = relationship(back_populates="logs")
+    job: Mapped[DocumentsProcessJob] = relationship(back_populates="logs")
 
 
 class FileResult(Base):
@@ -84,7 +89,7 @@ class FileResult(Base):
         ),
     )
 
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
+    job_id: Mapped[int] = mapped_column(ForeignKey("document_process_jobs.id", ondelete="CASCADE"))
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     file_type: Mapped[str] = mapped_column(String(32), nullable=False)
     parser_name: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -95,4 +100,4 @@ class FileResult(Base):
     extracted_summary: Mapped[str] = mapped_column(Text, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    job: Mapped[LocalDocumentsProcessJob] = relationship(back_populates="results")
+    job: Mapped[DocumentsProcessJob] = relationship(back_populates="results")

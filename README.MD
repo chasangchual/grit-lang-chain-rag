@@ -143,7 +143,7 @@ alembic current
 ### Create a Migration Script 
 With the environment in place we can create a new revision, using alembic revision:
 ```
-alembic revision -m "create account table"
+alembic revision  --autogenerate  -m "create account table"
 ```
 
 ## 5. How to run
