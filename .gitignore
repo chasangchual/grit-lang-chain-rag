@@ -77,7 +77,6 @@ htmlcov/
 Thumbs.db
 
 # VS Code
-.vscode/
 
 # PyCharm / JetBrains
 .idea/

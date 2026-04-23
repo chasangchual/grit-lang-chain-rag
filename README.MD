@@ -168,6 +168,12 @@ celery -A app.worker.celery_app:celery_app worker --loglevel=INFO
 
 > The Celery worker must be running for background jobs (document processing) to execute. Without it, tasks are enqueued in Redis but never consumed.
 
+### Run document embedding directly (bypassing the web UI)
+
+```bash
+uv run python scripts/run_embedding.py /path/to/your/docs
+```
+
 ### Trigger a Celery task manually
 
 From the Celery CLI:
