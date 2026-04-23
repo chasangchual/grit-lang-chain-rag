@@ -12,7 +12,7 @@ class DocumentService:
 
     def __init__(self, session: Session):
         self.session = session
-        self.repository = DocumentService(session)
+        self.repository = DocumentRepository(session)
 
     def create_document(self, schema: DocumentCreate) -> Document:
         """Create a new document."""

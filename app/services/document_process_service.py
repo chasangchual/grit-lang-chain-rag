@@ -7,7 +7,7 @@ import logging
 from app.config.db import SessionLocal
 from app.embedding.loaders.file_loaders import FileSystemLoader
 from app.models import document
-from app.models.job import LocalDocumentsProcessJob
+from app.models.job import DocumentsProcessJob
 from celery.exceptions import MaxRetriesExceededError
 from sqlalchemy.exc import OperationalError
 from app.worker.job_service import (
@@ -18,7 +18,7 @@ from app.worker.job_service import (
 )
 
 
-def process_document(session: Session, job: LocalDocumentsProcessJob, task_id: str | None):
+def process_document(session: Session, job: DocumentsProcessJob, task_id: str | None):
     print(f"""Processing documents for job_id: {job.id}""")
 
     try:
@@ -33,7 +33,7 @@ def process_document(session: Session, job: LocalDocumentsProcessJob, task_id: s
 
         # TODO: actual document processing logic here
         
-        process_document_embedding(session,job.input_dir)
+        process_document_embedding(session,job.load_from)
         
         mark_job_completed(session, job)
 

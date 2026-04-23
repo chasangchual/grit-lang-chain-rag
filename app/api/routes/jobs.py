@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select, func
 
 from app.api.deps import DbSession
-from app.models.job import LocalDocumentsProcessJob, JobStatus
+from app.models.job import DocumentsProcessJob, JobStatus
 from app.schemas.job import (
     JobCreate,
     JobDetailResponse,
@@ -22,11 +22,11 @@ from app.worker.tasks import handle_process_documents_job
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-def job_to_response(job: LocalDocumentsProcessJob) -> JobResponse:
+def job_to_response(job: DocumentsProcessJob) -> JobResponse:
     return JobResponse(
-        id=job.id,
+        id=job.id.value,
         name=job.name,
-        input_dir=job.input_dir,
+        input_dir=job.load_from,
         status=job.status,
         total_files=job.total_files,
         processed_files=job.processed_files,
@@ -75,15 +75,15 @@ def list_jobs(
         None, alias="status", description="Filter by status"
     ),
 ) -> JobListResponse:
-    stmt = select(LocalDocumentsProcessJob)
+    stmt = select(DocumentsProcessJob)
     if status_filter:
-        stmt = stmt.where(LocalDocumentsProcessJob.status == status_filter)
-    stmt = stmt.order_by(LocalDocumentsProcessJob.created_at.desc()).offset(skip).limit(limit)
+        stmt = stmt.where(DocumentsProcessJob.status == status_filter)
+    stmt = stmt.order_by(DocumentsProcessJob.created_at.desc()).offset(skip).limit(limit)
     jobs = list(session.scalars(stmt).all())
 
-    count_stmt = select(func.count()).select_from(LocalDocumentsProcessJob)
+    count_stmt = select(func.count()).select_from(DocumentsProcessJob)
     if status_filter:
-        count_stmt = count_stmt.where(LocalDocumentsProcessJob.status == status_filter)
+        count_stmt = count_stmt.where(DocumentsProcessJob.status == status_filter)
     total = session.scalar(count_stmt) or 0
 
     return JobListResponse(
@@ -144,7 +144,7 @@ def get_job(
     summary="Get Celery task status",
 )
 def get_task_status(job_id: int, session: DbSession) -> dict[str, Any]:
-    job = session.get(LocalDocumentsProcessJob, job_id)
+    job = session.get(DocumentsProcessJob, job_id)
     if job is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

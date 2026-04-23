@@ -4,7 +4,7 @@ from celery.exceptions import MaxRetriesExceededError
 from sqlalchemy.exc import OperationalError
 
 from app.config.db import SessionLocal, get_session
-from app.models.job import LocalDocumentsProcessJob
+from app.models.job import DocumentsProcessJob
 from app.worker.celery_app import celery_app, PROCESS_DOCS_TASK_NAME
 from app.worker.job_service import get_job
 from app.services.document_process_service import process_document

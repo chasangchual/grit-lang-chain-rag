@@ -7,19 +7,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config.app_config import get_config
-from app.models.job import FileResult, LocalDocumentsProcessJob, DocumentsProcess, JobStatus
+from app.models.job import FileResult, DocumentsProcessJob, DocumentsProcess, JobStatus
 
 logger = logging.getLogger("job_runner.jobs")
 
 
-def create_job(session: Session, name: str, input_dir: str | None) -> LocalDocumentsProcessJob:
+def create_job(session: Session, name: str, load_from: str) -> DocumentsProcessJob:
     config = get_config()
-    resolved_dir = str(Path(input_dir) if input_dir else config.job_input_dir)
-    job = LocalDocumentsProcessJob(name=name, input_dir=resolved_dir)
+    resolved_dir = str(Path(load_from))
+    job = DocumentsProcessJob(name=name, input_dir=resolved_dir)
     session.add(job)
     session.commit()
     session.refresh(job)
-    add_job_log(session, job.id, f"Job created for input directory: {resolved_dir}")
+    add_job_log(session, job.id.value, f"Job created for input directory: {resolved_dir}")
     return job
 
 
@@ -29,21 +29,21 @@ def add_job_log(session: Session, job_id: int, message: str, level: str = "INFO"
     getattr(logger, level.lower(), logger.info)("job_id=%s %s", job_id, message)
 
 
-def get_job(session: Session, job_id: int) -> LocalDocumentsProcessJob | None:
+def get_job(session: Session, job_id: int) -> DocumentsProcessJob | None:
     stmt = (
-        select(LocalDocumentsProcessJob)
-        .where(LocalDocumentsProcessJob.id == job_id)
-        .options(selectinload(LocalDocumentsProcessJob.logs), selectinload(LocalDocumentsProcessJob.results))
+        select(DocumentsProcessJob)
+        .where(DocumentsProcessJob.id == job_id)
+        .options(selectinload(DocumentsProcessJob.logs), selectinload(DocumentsProcessJob.results))
     )
     return session.scalar(stmt)
 
 
-def list_jobs(session: Session) -> list[LocalDocumentsProcessJob]:
-    stmt = select(LocalDocumentsProcessJob).order_by(LocalDocumentsProcessJob.created_at.desc())
+def list_jobs(session: Session) -> list[DocumentsProcessJob]:
+    stmt = select(DocumentsProcessJob).order_by(DocumentsProcessJob.created_at.desc())
     return list(session.scalars(stmt).all())
 
 
-def mark_job_running(session: Session, job: LocalDocumentsProcessJob, total_files: int, celery_task_id: str) -> None:
+def mark_job_running(session: Session, job: DocumentsProcessJob, total_files: int, celery_task_id: str) -> None:
     from datetime import datetime, timezone
 
     job.status = JobStatus.running
@@ -53,13 +53,13 @@ def mark_job_running(session: Session, job: LocalDocumentsProcessJob, total_file
     session.commit()
 
 
-def mark_job_retrying(session: Session, job: LocalDocumentsProcessJob, error_message: str) -> None:
+def mark_job_retrying(session: Session, job: DocumentsProcessJob, error_message: str) -> None:
     job.status = JobStatus.retrying
     job.error_message = error_message
     session.commit()
 
 
-def increment_processed_files(session: Session, job: LocalDocumentsProcessJob) -> None:
+def increment_processed_files(session: Session, job: DocumentsProcessJob) -> None:
     job.processed_files += 1
     session.commit()
 
@@ -79,7 +79,7 @@ def store_file_result(session: Session, job_id: int, result: dict[str, str | int
     session.commit()
 
 
-def mark_job_completed(session: Session, job: LocalDocumentsProcessJob) -> None:
+def mark_job_completed(session: Session, job: DocumentsProcessJob) -> None:
     from datetime import datetime, timezone
 
     job.status = JobStatus.completed
@@ -87,7 +87,7 @@ def mark_job_completed(session: Session, job: LocalDocumentsProcessJob) -> None:
     session.commit()
 
 
-def mark_job_failed(session: Session, job: LocalDocumentsProcessJob, error_message: str) -> None:
+def mark_job_failed(session: Session, job: DocumentsProcessJob, error_message: str) -> None:
     from datetime import datetime, timezone
 
     job.status = JobStatus.failed
