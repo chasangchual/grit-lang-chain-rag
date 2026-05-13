@@ -17,8 +17,10 @@ class PipelineConfig:
             ".rst",
             ".pdf",
             ".docx",
+            ".doc",
             ".xlsx",
             ".xls",
             ".pptx",
+            ".ppt",
         }
     )

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any, Literal, cast
 
 from langchain_community.document_loaders import PyPDFLoader
+
+ExcelEngine = Literal["openpyxl", "xlrd"]
 
 from .base import DocumentLoader, LoaderDependencyError, LoaderRegistry, build_document
 from ..models import Document
@@ -55,7 +58,7 @@ class PdfLoader(_ExtensionBasedLoader):
         ]
 
 
-class WordLoader(_ExtensionBasedLoader):
+class WordDocxLoader(_ExtensionBasedLoader):
     extensions = {".docx"}
 
     def load(self, source: str | Path) -> list[Document]:
@@ -73,6 +76,87 @@ class WordLoader(_ExtensionBasedLoader):
         except Exception as exc:
             logging.warning(f"Failed to load Word document {path}: {exc}")
             return []
+        
+class WordDocLoader(_ExtensionBasedLoader):
+    """Loader for legacy binary ``.doc`` files (pre-2007 Word format).
+
+    Converts ``.doc`` to ``.docx`` via a headless LibreOffice (``soffice``)
+    invocation in an isolated user profile (to avoid profile-lock collisions
+    under concurrent Celery workers / a running LibreOffice GUI), then
+    extracts text with ``docx2txt``.
+    """
+
+    extensions = {".doc"}
+
+    def load(self, source: str | Path) -> list[Document]:
+        import shutil
+        import subprocess
+        import tempfile
+
+        soffice = shutil.which("soffice") or shutil.which("libreoffice")
+        if not soffice:
+            raise LoaderDependencyError(
+                "Legacy .doc support requires LibreOffice (`soffice`) on PATH. "
+                "Install with: brew install --cask libreoffice"
+            )
+
+        try:
+            import docx2txt
+        except ImportError as exc:
+            raise LoaderDependencyError(
+                "Legacy .doc support requires `docx2txt`. Install it with: uv add docx2txt"
+            ) from exc
+
+        path = Path(source)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            profile_uri = (tmp / "profile").as_uri()
+            outdir = tmp / "out"
+            outdir.mkdir()
+            cmd = [
+                soffice,
+                f"-env:UserInstallation={profile_uri}",
+                "--headless",
+                "--norestore",
+                "--nologo",
+                "--nofirststartwizard",
+                "--convert-to",
+                "docx:MS Word 2007 XML",
+                "--outdir",
+                str(outdir),
+                str(path),
+            ]
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    check=False,
+                )
+            except (subprocess.TimeoutExpired, OSError) as exc:
+                logging.warning(f"soffice invocation failed for {path}: {exc}")
+                return []
+
+            converted = outdir / (path.stem + ".docx")
+            if result.returncode != 0 or not converted.exists():
+                logging.warning(
+                    "soffice failed to convert %s to docx (exit=%s). "
+                    "stdout=%r stderr=%r",
+                    path, result.returncode, result.stdout, result.stderr,
+                )
+                return []
+
+            try:
+                text = docx2txt.process(str(converted))
+            except Exception as exc:
+                logging.warning(f"Failed to extract text from converted {converted}: {exc}")
+                return []
+
+        if not text or not text.strip():
+            return []
+        return [build_document(path, "word", text, {"extension": ".doc"})]
+
 
 class ExcelLoader(_ExtensionBasedLoader):
     extensions = {".xlsx", ".xls"}
@@ -97,12 +181,12 @@ class ExcelLoader(_ExtensionBasedLoader):
 
         try:
             chunks: list[str] = []
-            workbook = pd.read_excel(
+            workbook: dict[str, "pd.DataFrame"] = pd.read_excel(
                 path,
                 sheet_name=None,
                 header=None,
                 engine=engine,
-                dtype=object,
+                dtype=object,  # type: ignore[arg-type]
             )
 
             for sheet_name, frame in workbook.items():
@@ -121,7 +205,7 @@ class ExcelLoader(_ExtensionBasedLoader):
             return []
 
     @staticmethod
-    def _engine_for_suffix(suffix: str) -> str:
+    def _engine_for_suffix(suffix: str) -> ExcelEngine:
         if suffix == ".xls":
             return "xlrd"
         return "openpyxl"
@@ -133,7 +217,7 @@ class ExcelLoader(_ExtensionBasedLoader):
         except ImportError:
             return "" if value is None else str(value)
 
-        if value is None or pd.isna(value):
+        if value is None or bool(pd.isna(cast(Any, value))):
             return ""
         return str(value)
 

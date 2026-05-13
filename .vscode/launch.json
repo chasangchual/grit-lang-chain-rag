@@ -20,7 +20,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/scripts/run_embedding.py",
-            "args": [],
+            "args": ["/Users/sangcha/temp/rag"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

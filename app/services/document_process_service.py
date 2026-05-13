@@ -1,9 +1,10 @@
 from math import log
+from typing import List
 import uuid
 
 from sqlalchemy.orm import Session
 import logging
-
+from pathlib import Path 
 from app.config.db import SessionLocal
 from app.embedding.loaders.file_loaders import FileSystemLoader
 from app.models import document
@@ -16,6 +17,10 @@ from app.worker.job_service import (
     mark_job_failed,
     mark_job_completed,
 )
+from app.embedding.splitters import DocumentSplitter,RecursiveTextSplitter
+from app.embedding.pipeline import EmbeddingPipeline, EmbeddedChunk, EmbeddingProvider
+from app.embedding.embedders import OllamaEmbeddingProvider
+from app.embedding.loaders import build_default_registry
 
 
 def process_document(session: Session, job: DocumentsProcessJob, task_id: str | None):
@@ -53,7 +58,7 @@ def process_document(session: Session, job: DocumentsProcessJob, task_id: str | 
         logging.info(f"Finished processing job_id: {job.id if job else 'unknown'}")
 
 
-def process_document_embedding(session: Session, input_dir: str | None):
+def load_documents(session: Session, input_dir: str | None):
     if input_dir:
         fileSystemLoader: FileSystemLoader = FileSystemLoader(path=input_dir);
         documents = fileSystemLoader.load()
@@ -61,3 +66,17 @@ def process_document_embedding(session: Session, input_dir: str | None):
             print(f"Document: {document.type}, Text: {document.text[:100]}...")
         return len(documents)
     return 0
+
+def process_document_embedding(session: Session, input_dir: str | None):
+    if input_dir:
+        splitter: DocumentSplitter = RecursiveTextSplitter() 
+        embedder: EmbeddingProvider = OllamaEmbeddingProvider() 
+            
+        pipeline = EmbeddingPipeline(registry=build_default_registry(), splitter=splitter, embedder=embedder)
+        
+        embendings : List[EmbeddedChunk] = pipeline.process_directory(Path(input_dir));
+        for embending in embendings:
+            print(f"{embending.vector}")
+        return len(embendings)
+    return 0
+

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from .config import PipelineConfig
@@ -31,7 +32,7 @@ class EmbeddingPipeline:
         supported = self._discovery.filter_supported(files, self._config.supported_extensions)
         return self.process_sources(supported)
 
-    def process_sources(self, sources: list[str | Path]) -> list[EmbeddedChunk]:
+    def process_sources(self, sources: Sequence[str | Path]) -> list[EmbeddedChunk]:
         documents: list[Document] = []
         for source in sources:
             documents.extend(self._registry.load(source))

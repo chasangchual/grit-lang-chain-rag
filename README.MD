@@ -45,6 +45,16 @@ brew link --force libpq
 Note: If linking fails, you may need to add the path to your .zshrc or .bash_profile as instructed in the Homebrew "Caveats" output. 
 
 
+### Install textract 
+
+```bash
+brew install libxml2 libxslt libmagic swig antiword unrtf poppler tesseract flac ffmpeg lame sox
+```
+
+then
+```
+uv add textract
+```
 ---
 
 ## 2. Files
